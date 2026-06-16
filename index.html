@@ -1,0 +1,1130 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StarDitWan - 32X Tactical Edition</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        body { 
+            margin: 0;
+            overflow: hidden; 
+            background: #000; 
+            font-family: 'Press Start 2P', monospace; 
+            user-select: none;
+        }
+        canvas { display: block; }
+
+        /* --- THEME VIOLET / JAUNE POUR LES MENUS --- */
+        #menu-container, #gameover-container, #pause-container {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: #1a002b;
+            color: #ffea00;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            text-align: center;
+            box-sizing: border-box;
+            border: 10px double #8000ff;
+        }
+
+        #gameover-container { background: rgba(26, 0, 43, 0.95); border-color: #ffea00; display: none; }
+        #pause-container { background: rgba(26, 0, 43, 0.85); border-color: #8000ff; display: none; }
+
+        .title {
+            font-size: 42px;
+            color: #ffea00;
+            text-shadow: 4px 4px 0px #000, 8px 8px 0px #8000ff;
+            margin-bottom: 5px;
+            letter-spacing: 2px;
+            animation: float 3s ease-in-out infinite;
+        }
+        .subtitle {
+            font-size: 14px;
+            color: #d480ff;
+            margin-bottom: 30px;
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+
+        @keyframes blinkMenu {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .btn {
+            background: #330066;
+            color: #ffea00;
+            font-family: 'Press Start 2P', monospace;
+            padding: 15px 30px;
+            font-size: 16px;
+            border: 4px solid #8000ff;
+            cursor: pointer;
+            box-shadow: 5px 5px 0px #ffea00;
+            outline: none;
+            margin: 10px;
+            transition: all 0.1s;
+        }
+        .btn:hover {
+            background: #ffea00;
+            color: #330066;
+            box-shadow: 5px 5px 0px #8000ff;
+        }
+        .btn.blink { animation: blinkMenu 1.5s infinite; }
+
+        /* Liste des contrôles interactifs */
+        .controls-panel {
+            background: #0d001a;
+            border: 3px solid #8000ff;
+            padding: 20px;
+            margin-bottom: 20px;
+            max-width: 650px;
+            text-align: left;
+        }
+        .control-row {
+            margin: 10px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 10px;
+            color: #d480ff;
+        }
+        .key-btn {
+            background: #330066;
+            color: #ffea00;
+            border: 2px solid #ffea00;
+            padding: 5px 10px;
+            cursor: pointer;
+            font-size: 10px;
+            font-family: 'Press Start 2P', monospace;
+            min-width: 120px;
+            text-align: center;
+        }
+        .key-btn:hover { background: #ffea00; color: #330066; }
+
+        .settings-row {
+            display: flex;
+            gap: 20px; margin-bottom: 20px; font-size: 10px; color: #ffea00;
+        }
+        .settings-row input { accent-color: #8000ff; cursor: pointer; width: 120px; }
+
+        /* HUD Supérieur de vol */
+        #hud-top {
+            position: absolute;
+            top: 20px; left: 5%; width: 90%;
+            display: none; justify-content: space-between;
+            color: #00ff66; font-size: 12px; z-index: 10;
+            pointer-events: none;
+            text-shadow: 2px 2px 0px #000;
+        }
+
+        /* Boss UI */
+        #boss-ui {
+            position: absolute;
+            top: 80px; left: 50%; transform: translateX(-50%);
+            display: none; width: 350px; text-align: center; z-index: 10; pointer-events: none;
+        }
+        .boss-name { font-size: 10px; color: #ff0033; margin-bottom: 5px; text-shadow: 2px 2px 0px #000; }
+        .boss-bar { width: 100%; height: 12px; background: #330000; border: 2px solid #ff0033; border-radius: 4px; overflow: hidden; }
+        #boss-bar-fill { width: 100%; height: 100%; background: #ff0033; transition: width 0.2s; }
+
+        /* NOUVEAU RETICULE EN CROIX ROUGE */
+        #target-reticle {
+            position: absolute;
+            width: 50px; height: 50px; border: 2px solid #ff0033;
+            transform: translate(-50%, -50%); pointer-events: none; z-index: 9; display: none;
+            border-radius: 50%;
+        }
+        #target-reticle::before { content: ''; position: absolute; background: #ff0033; top: 50%; left: -15px; right: -15px; height: 2px; transform: translateY(-50%); }
+        #target-reticle::after { content: ''; position: absolute; background: #ff0033; left: 50%; top: -15px; bottom: -15px; width: 2px; transform: translateX(-50%); }
+
+        /* TEXTES DU RETICULE */
+        #lock-alert {
+            position: absolute;
+            top: -25px; left: 50%; transform: translateX(-50%);
+            color: #ff0033; font-size: 9px; animation: blinkFast 0.2s infinite alternate;
+            text-shadow: 1px 1px 0px #000; white-space: nowrap; font-weight: bold;
+        }
+        #hit-alert {
+            position: absolute;
+            bottom: -25px; left: 50%; transform: translateX(-50%);
+            color: #ff0033; font-size: 10px; display: none; font-weight: bold;
+            text-shadow: 1px 1px 0px #000; white-space: nowrap;
+        }
+        @keyframes blinkFast { from { opacity: 1; } to { opacity: 0.1; } }
+
+        /* Réticule central statique */
+        #crosshair-container {
+            position: absolute;
+            top: 50%; left: 50%; width: 60px; height: 60px;
+            transform: translate(-50%, -50%); pointer-events: none; z-index: 9; display: none;
+        }
+        .crosshair-element { position: absolute; border: 2px solid #ff0055; }
+        .ch-tl { top: 0; left: 0; width: 15px; height: 15px; border-right: none; border-bottom: none; }
+        .ch-tr { top: 0; right: 0; width: 15px; height: 15px; border-left: none; border-bottom: none; }
+        .ch-bl { bottom: 0; left: 0; width: 15px; height: 15px; border-right: none; border-top: none; }
+        .ch-br { bottom: 0; right: 0; width: 15px; height: 15px; border-left: none; border-top: none; }
+        .ch-dot { top: 50%; left: 50%; width: 6px; height: 6px; background: #ff0055; transform: translate(-50%, -50%); border-radius: 50%; }
+
+        /* Transmission Radio */
+        #radio-transmission {
+            position: absolute;
+            bottom: 120px; left: 50%; transform: translateX(-50%); width: 600px;
+            background: rgba(0, 20, 10, 0.85); border: 3px solid #00ff66; color: #00ff66;
+            padding: 15px; display: none; font-size: 10px; line-height: 1.6; z-index: 10; pointer-events: none;
+        }
+
+        /* Structure du Cockpit */
+        #cockpit-frame {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; display: none; flex-direction: column; justify-content: space-between; z-index: 8;
+        }
+        .cockpit-top { width: 100%; height: 5vh; background: linear-gradient(to bottom, #111, transparent); border-bottom: 2px solid #8000ff; }
+        .cockpit-bottom {
+            width: 100%;
+            height: 25vh; background: #111115; border-top: 4px solid #8000ff;
+            display: flex; justify-content: space-around; align-items: center; padding: 10px; box-sizing: border-box;
+        }
+        .screen-panel {
+            width: 28%;
+            height: 90%; background: #000d05; border: 3px solid #333;
+            box-shadow: inset 0 0 15px #004411; padding: 10px; box-sizing: border-box; color: #00ff66;
+            font-size: 8px; display: flex; flex-direction: column; justify-content: space-between;
+        }
+        .panel-title { color: #ffaa00; text-align: center; border-bottom: 2px dashed #00ff66; padding-bottom: 4px; font-size: 9px; }
+
+        .hearts-container { display: flex; gap: 4px; justify-content: center; margin-top: 5px; flex-wrap: wrap; }
+        .heart { font-size: 12px; color: #ff0055; text-shadow: 1px 1px 0px #000; }
+        .heart.empty { color: #330011; }
+
+        .gauge-bar { width: 100%; height: 10px; background: #222; border: 1px solid #00ff66; margin-top: 5px; overflow: hidden; }
+        .gauge-fill { height: 100%; background: #00ff66; transition: width 0.1s; }
+        .gauge-fill.cooldown { background: #ffaa00 !important; }
+
+        #wing-l, #wing-r {
+            position: absolute;
+            bottom: 25vh; width: 10vw; height: 18vh;
+            background: #222; border: 3px solid #8000ff; z-index: 7; display: none; transition: border-color 0.2s;
+        }
+        #wing-l { left: 0; transform: skewY(15deg); border-left: none; }
+        #wing-r { right: 0; transform: skewY(-15deg); border-right: none; }
+
+        #pitch-ladder {
+            position: absolute;
+            top: 25%; left: 35%; width: 30%; height: 50%;
+            border-left: 2px dashed rgba(128,0,255,0.4); border-right: 2px dashed rgba(128,0,255,0.4);
+            pointer-events: none; z-index: 6;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+<div id="menu-container">
+    <div class="title">STARDITWAN</div>
+    <div class="subtitle">32X TACTICAL SIMULATION</div>
+
+    <div class="controls-panel">
+        <div style="text-align: center; color: #ffea00; margin-bottom: 15px; font-size: 12px; text-shadow: 2px 2px 0px #8000ff;">CONFIGURATION TACTIQUE</div>
+        <div style="text-align: center; color: #d480ff; margin-bottom: 20px; font-size: 8px;">(CLIQUEZ SUR UN BOUTON POUR ASSIGNER UNE TOUCHE OU UN CLIC SOURIS)</div>
+        <div style="display: flex; gap: 20px;">
+            <div style="flex: 1;">
+                <div class="control-row"><span>MONTER :</span><button class="key-btn" onclick="assignKey('keyUp')">Z</button></div>
+                <div class="control-row"><span>DESCENDRE :</span><button class="key-btn" onclick="assignKey('keyDown')">S</button></div>
+                <div class="control-row"><span>GAUCHE :</span><button class="key-btn" onclick="assignKey('keyLeft')">Q</button></div>
+                <div class="control-row"><span>DROITE :</span><button class="key-btn" onclick="assignKey('keyRight')">D</button></div>
+            </div>
+            <div style="flex: 1;">
+                <div class="control-row"><span>LASER :</span><button class="key-btn" onclick="assignKey('keyShootLaser')">SPACE</button></div>
+                <div class="control-row"><span>MISSILE :</span><button class="key-btn" onclick="assignKey('keyShootMissile')">CLIC GAUCHE</button></div>
+                <div class="control-row"><span>BOUCLIER :</span><button class="key-btn" onclick="assignKey('keyShield')">CLIC DROIT</button></div>
+                <div class="control-row"><span>PAUSE :</span><button class="key-btn" style="pointer-events:none;">P / ECHAP</button></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="settings-row">
+        <div>SFX VOL: <input type="range" id="vol-sfx" min="0" max="1" step="0.1" value="0.5"></div>
+        <div>MUSIC VOL: <input type="range" id="vol-music" min="0" max="1" step="0.1" value="0.3"></div>
+    </div>
+
+    <button class="btn blink" id="btn-play">DÉMARRER VOL</button>
+</div>
+
+<div id="gameover-container">
+    <div class="title">FIN DE TRANSMISSION</div>
+    <div class="subtitle">APPAREIL DÉTRUIT</div>
+    <div style="font-size: 14px; margin-bottom: 10px;">SCORE TOTAL : <span id="final-score" style="color:#fff;">0000</span></div>
+    <div style="font-size: 14px; margin-bottom: 25px; color: #ffaa00;">ROUNDS SURVÉCUS : <span id="final-round" style="color:#fff;">0</span></div>
+    
+    <div style="font-size: 12px; margin-bottom: 30px; color: #00ffff; text-shadow: 2px 2px 0px #000; animation: blinkFast 1s infinite alternate;">SCREEN TON SCORE POUR LE SAUVEGARDER !</div>
+    
+    <button class="btn blink" id="btn-restart">RECONSTRUIRE</button>
+</div>
+
+<div id="pause-container">
+    <div class="title">SIMULATION EN PAUSE</div>
+    <button class="btn" id="btn-resume">REPRENDRE LE VOL</button>
+    <button class="btn" id="btn-quit" style="border-color:#ff0033; color:#ff0033; box-shadow:5px 5px 0px #ff0033;">ABANDONNER MISSION</button>
+</div>
+
+<div id="hud-top">
+    <div>ROUND: <span id="round-val" style="color:#ffaa00;">1</span></div>
+    <div>SCORE: <span id="score-val" style="color:#fff;">0000</span></div>
+    <div>BEST: <span id="best-val" style="color:#00ffff;">0000</span></div>
+</div>
+
+<div id="target-reticle">
+    <div id="lock-alert">MISSILE CIBLÉ</div>
+    <div id="hit-alert">CIBLE TOUCHÉE</div>
+</div> 
+
+<div id="crosshair-container">
+    <div class="crosshair-element ch-tl"></div>
+    <div class="crosshair-element ch-tr"></div>
+    <div class="crosshair-element ch-bl"></div>
+    <div class="crosshair-element ch-br"></div>
+    <div class="crosshair-element ch-dot"></div>
+</div>
+
+<div id="radio-transmission">
+    <span style="color: #ffaa00; font-weight: bold;">[TRANSMISSION QG]</span><br>
+    <span id="radio-text">ATTENTE D'ORDRES...</span>
+</div>
+
+<div id="pitch-ladder"></div>
+<div id="wing-l"></div>
+<div id="wing-r"></div>
+
+<div id="cockpit-frame">
+    <div class="cockpit-top"></div>
+    <div class="cockpit-bottom">
+        <div class="screen-panel">
+            <div class="panel-title">SANTÉ BLINDAGE</div>
+            <div style="text-align:center; font-size:7px; margin-top:5px;">SANTÉ DU PILOTE (10 HP)</div>
+            <div class="hearts-container" id="hearts-box"></div>
+            <div style="text-align: center; font-size: 7px; margin-top: 10px; color: #ffaa00;" id="shield-status-txt">BOUCLIER PRÊT</div>
+            <div class="gauge-bar"><div class="gauge-fill" id="shield-bar-fill" style="width: 100%;"></div></div>
+        </div>
+
+        <div class="screen-panel" style="border-color: #8000ff; background: #0c000c; text-align: center; justify-content: center;">
+            <div class="panel-title" style="color: #8000ff; border-color: #8000ff;">RADAR DE DANGER</div>
+            <div style="font-size: 9px; margin-top: 10px; color: #00ff66;" id="radar-alert">ZONE SÛRE</div>
+            <div style="font-size: 7px; color: #777; margin-top: 5px;">ALIGNEMENT OPTIMAL REQUIS</div>
+            <div style="font-size: 8px; color: #ffaa00; margin-top: 10px;" id="round-goal-txt">OBJECTIF : 1000 PTS</div>
+        </div>
+
+        <div class="screen-panel">
+            <div class="panel-title">ARMEMENT</div>
+            <div>
+                <span style="display:flex; justify-content:space-between;">
+                    <span>LASER SPATIAL :</span><span id="laser-ammo-txt">PRÊT</span>
+                </span>
+                <div class="gauge-bar"><div class="gauge-fill" id="laser-bar-fill" style="width: 100%;"></div></div>
+            </div>
+            <div style="margin-top: 5px;">
+                <span style="display:flex; justify-content:space-between;">
+                    <span>MISSILE TACTIQUE :</span><span id="missile-ammo-txt" style="color:#00ffff;">100%</span>
+                </span>
+                <div class="gauge-bar" style="border-color:#00ffff;">
+                    <div class="gauge-fill" id="missile-bar-fill" style="width: 100%; background:#00ffff;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="boss-ui">
+    <div class="boss-name" id="boss-title">COMMANDER CRUISE-DESTROYER</div>
+    <div class="boss-bar"><div id="boss-bar-fill"></div></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// --- CONFIGURATION TOUCHES & SOURIS ---
+let keysConfig = {
+    keyUp: 'z', keyDown: 's', keyLeft: 'q', keyRight: 'd',
+    keyShootLaser: ' ', keyShootMissile: 'Mouse0', keyShield: 'Mouse2'
+};
+let currentAssigningKey = null;
+
+function getDisplayKeyName(key) {
+    if (key === ' ') return 'SPACE';
+    if (key.toLowerCase() === 'mouse0') return 'CLIC GAUCHE';
+    if (key.toLowerCase() === 'mouse1') return 'CLIC MOLETTE';
+    if (key.toLowerCase() === 'mouse2') return 'CLIC DROIT';
+    return key.toUpperCase();
+}
+
+function assignKey(action) {
+    currentAssigningKey = action;
+    const btn = event.target;
+    btn.innerText = "PRESSE TOUCHE/CLIC";
+    btn.style.background = "#8000ff";
+    btn.style.color = "#fff";
+}
+
+function updateAssignUI(pressed) {
+    const btns = document.querySelectorAll('.key-btn');
+    let indexMap = { 'keyUp':0, 'keyDown':1, 'keyLeft':2, 'keyRight':3, 'keyShootLaser':4, 'keyShootMissile':5, 'keyShield':6 };
+    const currentBtn = btns[indexMap[currentAssigningKey]];
+    currentBtn.innerText = getDisplayKeyName(pressed);
+    currentBtn.style.background = "#330066";
+    currentBtn.style.color = "#ffea00";
+    currentAssigningKey = null;
+}
+
+// Gestion Clavier
+window.addEventListener('keydown', (e) => {
+    if (currentAssigningKey) {
+        e.preventDefault();
+        let pressed = e.key === " " ? " " : e.key;
+        keysConfig[currentAssigningKey] = pressed;
+        updateAssignUI(pressed);
+    } else if (gameActive) {
+        if(e.key === ' ' || e.key === keysConfig.keyShootLaser) e.preventDefault();
+        keysPressed[e.key.toLowerCase()] = true;
+        if(e.key.toLowerCase() === 'p' || e.key === 'Escape') togglePause();
+    }
+});
+window.addEventListener('keyup', (e) => { if(gameActive) keysPressed[e.key.toLowerCase()] = false; });
+
+// Gestion Souris
+window.addEventListener('mousedown', (e) => {
+    if (currentAssigningKey) {
+        e.preventDefault();
+        let pressed = 'Mouse' + e.button;
+        keysConfig[currentAssigningKey] = pressed;
+        updateAssignUI(pressed);
+    } else if (gameActive && e.target.tagName !== 'BUTTON' && e.target.tagName !== 'INPUT') {
+        keysPressed['mouse' + e.button] = true;
+    }
+});
+window.addEventListener('mouseup', (e) => {
+    if (gameActive) keysPressed['mouse' + e.button] = false;
+});
+window.addEventListener('contextmenu', e => { e.preventDefault(); }); // Bloque le menu clic droit
+
+// --- MOTEUR AUDIO 8-BIT & AMBIANCE ---
+let audioCtx = null;
+let sfxVolume = 0.5, musicVolume = 0.3;
+let musicOsc1, musicOsc2, musicGain;
+class RetroAudio {
+    init() {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+    }
+    
+    playLaser() {
+        if (!audioCtx) return;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(110, audioCtx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.3 * sfxVolume, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+        osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+    }
+
+    playExplosion() {
+        if (!audioCtx) return;
+        const bufferSize = audioCtx.sampleRate * 0.3;
+        const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+
+        const noise = audioCtx.createBufferSource();
+        noise.buffer = buffer;
+        const filter = audioCtx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(800, audioCtx.currentTime);
+        filter.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.3);
+
+        const gain = audioCtx.createGain();
+        gain.gain.setValueAtTime(0.7 * sfxVolume, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+
+        noise.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination);
+        noise.start(); noise.stop(audioCtx.currentTime + 0.3);
+    }
+
+    playHit() {
+        if (!audioCtx) return;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+        osc.frequency.linearRampToValueAtTime(40, audioCtx.currentTime + 0.2);
+        gain.gain.setValueAtTime(0.6 * sfxVolume, audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+        osc.start(); osc.stop(audioCtx.currentTime + 0.2);
+    }
+
+    playLock() {
+        if (!audioCtx) return;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(1200, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.15 * sfxVolume, audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.05);
+        osc.start(); osc.stop(audioCtx.currentTime + 0.05);
+    }
+
+    startAmbientMusic() {
+        if (!audioCtx || musicGain) return;
+        musicGain = audioCtx.createGain();
+        musicGain.connect(audioCtx.destination);
+        musicGain.gain.value = musicVolume * 0.5;
+
+        musicOsc1 = audioCtx.createOscillator();
+        musicOsc2 = audioCtx.createOscillator();
+        musicOsc1.type = 'sine';
+        musicOsc2.type = 'triangle';
+        musicOsc1.frequency.value = 65.41; // C2
+        musicOsc2.frequency.value = 98.00; // G2
+
+        const filter = audioCtx.createBiquadFilter();
+        filter.type = 'lowpass'; filter.frequency.value = 400;
+        
+        musicOsc1.connect(filter);
+        musicOsc2.connect(filter);
+        filter.connect(musicGain);
+        
+        musicOsc1.start(); musicOsc2.start();
+    }
+
+    updateVolumes() {
+        if (musicGain) musicGain.gain.value = musicVolume * 0.5;
+    }
+}
+const sfx = new RetroAudio();
+
+document.getElementById('vol-sfx').addEventListener('input', (e) => { sfxVolume = parseFloat(e.target.value); });
+document.getElementById('vol-music').addEventListener('input', (e) => { musicVolume = parseFloat(e.target.value); sfx.updateVolumes(); });
+
+// --- VARIABLES DU MOTEUR ---
+let scene, camera, renderer;
+let gameActive = false, isPaused = false;
+let score = 0, bestScore = localStorage.getItem('starditwan_best') || 0;
+let round = 1, playerHp = 10.0;
+
+let shieldActive = false, shieldOnCooldown = false;
+let shieldDuration = 5000, shieldCooldownDuration = 10000;
+let shieldStartTime = 0, shieldCooldownStartTime = 0, shieldVisualMesh = null;
+let laserHeat = 0, laserOverheated = false;
+let missileReady = true, lastMissileTime = 0, missileCooldown = 3000;
+let stars, meteors = [], aliens = [], lasers = [], alienProjectiles = [], playerMissiles = [], particles = [];
+let keysPressed = {};
+let playerAim = { x: 0, y: 0 };
+let lockedTarget = null, lastLockPlayTime = 0;
+let bossActive = false, bossHp = 0, maxBossHp = 3000;
+let lastAlienSpawnTime = 0;
+
+// --- INITIALISATION SCÈNE ---
+function init() {
+    if (scene) return;
+    scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x000000, 0.003);
+    camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 0, 0);
+    renderer = new THREE.WebGLRenderer({ antialias: false });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    
+    const oldCanvas = document.querySelector('canvas');
+    if (oldCanvas) oldCanvas.remove();
+    document.body.appendChild(renderer.domElement);
+
+    // Étoiles
+    const starCount = 350;
+    const starGeo = new THREE.BufferGeometry();
+    const starPositions = new Float32Array(starCount * 3);
+    const starColors = new Float32Array(starCount * 3);
+    for (let i = 0; i < starCount * 3; i += 3) {
+        starPositions[i] = (Math.random() - 0.5) * 400;
+        starPositions[i+1] = (Math.random() - 0.5) * 300;
+        starPositions[i+2] = -Math.random() * 600;
+        const rand = Math.random();
+        if (rand > 0.8) { starColors[i]=0.5; starColors[i+1]=0.0; starColors[i+2]=1.0; } // Violet
+        else if (rand > 0.6) { starColors[i]=1.0; starColors[i+1]=0.9; starColors[i+2]=0.0; } // Jaune
+        else { starColors[i]=1.0; starColors[i+1]=1.0; starColors[i+2]=1.0; } // Blanc
+    }
+    starGeo.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+    starGeo.setAttribute('color', new THREE.BufferAttribute(starColors, 3));
+    stars = new THREE.Points(starGeo, new THREE.PointsMaterial({ size: 1.8, vertexColors: true }));
+    scene.add(stars);
+
+    // Bouclier Visuel
+    const shieldGeo = new THREE.RingGeometry(1, 10, 32);
+    const shieldMat = new THREE.MeshBasicMaterial({ color: 0x8000ff, side: THREE.DoubleSide, transparent: true, opacity: 0.45, blending: THREE.AdditiveBlending, wireframe: true });
+    shieldVisualMesh = new THREE.Mesh(shieldGeo, shieldMat);
+    shieldVisualMesh.position.set(0, 0, -8);
+    shieldVisualMesh.visible = false;
+    scene.add(shieldVisualMesh);
+
+    window.addEventListener('resize', () => { camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
+}
+
+// --- LOGIQUE METIER & CORRECTIONS ---
+function resetGame() {
+    score = 0; round = 1;
+    playerHp = 10.0; bossActive = false;
+    document.getElementById('score-val').innerText = "0000";
+    document.getElementById('round-val').innerText = round;
+    document.getElementById('best-val').innerText = String(bestScore).padStart(4, '0');
+    document.getElementById('round-goal-txt').innerText = `OBJECTIF : ${round * 1000} PTS`;
+    
+    [meteors, aliens, lasers, alienProjectiles, playerMissiles].forEach(arr => {
+        arr.forEach(obj => scene.remove(obj)); arr.length = 0; 
+    });
+    camera.rotation.set(0,0,0); camera.position.set(0,0,0);
+    
+    shieldActive = false; shieldOnCooldown = false;
+    document.getElementById('shield-bar-fill').style.width = '100%';
+    document.getElementById('shield-status-txt').innerText = "BOUCLIER PRÊT";
+    document.getElementById('shield-bar-fill').classList.remove('cooldown');
+    if(shieldVisualMesh) shieldVisualMesh.visible = false;
+
+    laserHeat = 0; laserOverheated = false;
+    missileReady = true; lastAlienSpawnTime = Date.now();
+
+    updateHeartsHUD();
+    document.getElementById('boss-ui').style.display = 'none';
+    document.body.style.border = "none";
+    document.getElementById('wing-l').style.borderColor = "#8000ff";
+    document.getElementById('wing-r').style.borderColor = "#8000ff";
+    
+    gameActive = true; isPaused = false;
+    triggerRadioTransmission("COMMANDANT : SYSTÈMES EN LIGNE. DÉFENDEZ LE SECTEUR !");
+    update();
+}
+
+function updateHeartsHUD() {
+    const box = document.getElementById('hearts-box');
+    box.innerHTML = '';
+    for (let i = 1; i <= 10; i++) {
+        if (playerHp >= i) box.innerHTML += '<span class="heart">❤️</span>';
+        else if (playerHp >= i - 0.5) box.innerHTML += '<span class="heart" style="opacity:0.65;">💔</span>';
+        else box.innerHTML += '<span class="heart empty">🖤</span>';
+    }
+}
+
+function damagePlayer(amt) {
+    if (shieldActive || !gameActive) return;
+    playerHp -= amt;
+    sfx.playHit();
+    updateHeartsHUD();
+    
+    document.getElementById('wing-l').style.borderColor = '#ff0033';
+    document.getElementById('wing-r').style.borderColor = '#ff0033';
+    setTimeout(() => {
+        document.getElementById('wing-l').style.borderColor = '#8000ff';
+        document.getElementById('wing-r').style.borderColor = '#8000ff';
+    }, 200);
+    if (playerHp <= 0) triggerDeathAnimation();
+}
+
+function createExplosion(pos, colorHex, scale = 1.0, count = 15) {
+    sfx.playExplosion();
+    const particlesGeo = new THREE.BufferGeometry();
+    const positions = [], velocities = [];
+    for (let i = 0; i < count; i++) {
+        positions.push(pos.x, pos.y, pos.z);
+        velocities.push((Math.random()-0.5)*12*scale, (Math.random()-0.5)*12*scale, (Math.random()-0.5)*12*scale);
+    }
+    particlesGeo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    const mat = new THREE.PointsMaterial({ color: colorHex, size: 2.0*scale, transparent: true, opacity: 1.0, blending: THREE.AdditiveBlending });
+    const pSys = new THREE.Points(particlesGeo, mat);
+    scene.add(pSys);
+
+    const anim = () => {
+        if(!gameActive && playerHp>0) return;
+        const posArr = pSys.geometry.attributes.position.array;
+        for (let i=0; i<posArr.length; i+=3) {
+            posArr[i] += velocities[i/3]*0.15;
+            posArr[i+1] += velocities[(i/3)+1]*0.15; posArr[i+2] += velocities[(i/3)+2]*0.15;
+        }
+        pSys.geometry.attributes.position.needsUpdate = true;
+        mat.opacity -= 0.04;
+        if (mat.opacity > 0) requestAnimationFrame(anim);
+        else scene.remove(pSys);
+    };
+    anim();
+}
+
+// Affiche temporairement le texte "CIBLE TOUCHÉE"
+function showHitText() {
+    const hitTxt = document.getElementById('hit-alert');
+    hitTxt.style.display = 'block';
+    clearTimeout(hitTxt.timeout);
+    hitTxt.timeout = setTimeout(() => { hitTxt.style.display = 'none'; }, 1000);
+}
+
+function getSpeedMultiplier() {
+    let tier = Math.floor((round - 1) / 5);
+    return 1 + (tier * 0.5); // Round 1-4: x1 | Round 5-9: x1.5 | Round 10-14: x2
+}
+
+function spawnMeteors(qty) {
+    let speedMult = getSpeedMultiplier();
+    for (let i = 0; i < qty; i++) {
+        const m = new THREE.Mesh(new THREE.DodecahedronGeometry(3 + Math.random()*5, 0), new THREE.MeshBasicMaterial({ color: 0x5c4033, wireframe: true }));
+        m.position.set((Math.random()-0.5)*120, (Math.random()-0.5)*80, -350 - (Math.random()*150));
+        m.userData = { speed: (0.3 + Math.random()*0.3) * speedMult, rotSpeed: { x: (Math.random()-0.5)*0.02, y: (Math.random()-0.5)*0.02 } };
+        scene.add(m); meteors.push(m);
+    }
+}
+
+// APPARITION DES VAISSEAUX ENNEMIS (Volent tout droit)
+function spawnAlien(type) {
+    let speedMult = getSpeedMultiplier();
+    let group = new THREE.Group();
+
+    if (type === 1) { // Petit Vaisseau (100 pts)
+        let hp = 1; let speed = 0.3 * speedMult; let scoreVal = 100;
+        let body = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 6), new THREE.MeshBasicMaterial({ color: 0xff0055, wireframe: true }));
+        let wings = new THREE.Mesh(new THREE.BoxGeometry(8, 0.5, 3), new THREE.MeshBasicMaterial({ color: 0xffaaaa, wireframe: true }));
+        wings.position.set(0, 0, 1);
+        group.add(body); group.add(wings);
+        group.userData = { type: type, hp: hp, speed: speed, scoreVal: scoreVal, lastShotTime: 0 };
+    }
+    else if(type === 2) { // Vaisseau Moyen (250 pts)
+        let hp = 3; let speed = 0.2 * speedMult; let scoreVal = 250;
+        let body = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 2, 8, 8), new THREE.MeshBasicMaterial({ color: 0xffaa00, wireframe: true }));
+        body.rotation.x = Math.PI/2;
+        let wings = new THREE.Mesh(new THREE.BoxGeometry(12, 1, 4), new THREE.MeshBasicMaterial({ color: 0xffffaa, wireframe: true }));
+        wings.position.set(0, 0, 2);
+        group.add(body); group.add(wings);
+        group.userData = { type: type, hp: hp, speed: speed, scoreVal: scoreVal, lastShotTime: 0 };
+    }
+    else { // Vaisseau Boss (500 pts)
+        bossActive = true;
+        maxBossHp = 20 * speedMult; bossHp = maxBossHp;
+        const body = new THREE.Mesh(new THREE.CylinderGeometry(5, 10, 35, 8), new THREE.MeshBasicMaterial({ color: 0x990000, wireframe: true }));
+        body.rotation.x = Math.PI/2; group.add(body);
+        const wing = new THREE.Mesh(new THREE.BoxGeometry(50, 3, 12), new THREE.MeshBasicMaterial({ color: 0xff0033, wireframe: true }));
+        wing.position.set(0, 0, -4); group.add(wing);
+        const canon1 = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 20), new THREE.MeshBasicMaterial({ color: 0xffaa00, wireframe: true }));
+        canon1.position.set(12, 0, 10); group.add(canon1);
+        const canon2 = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 20), new THREE.MeshBasicMaterial({ color: 0xffaa00, wireframe: true }));
+        canon2.position.set(-12, 0, 10); group.add(canon2);
+
+        group.position.set(0, 10, -280);
+        group.userData = { type: 3, hp: maxBossHp, maxHp: maxBossHp, speed: 0.08 * speedMult, scoreVal: 500, lastShotTime: 0 };
+        scene.add(group); aliens.push(group);
+
+        document.getElementById('boss-title').innerText = `CRUISE-DESTROYER (ROUND ${round})`;
+        document.getElementById('boss-bar-fill').style.width = '100%';
+        document.getElementById('boss-ui').style.display = 'block';
+        return; 
+    }
+    
+    // Position de départ. Ils voleront tout droit sur l'axe Z
+    group.position.set((Math.random()-0.5)*40, (Math.random()-0.5)*30, -300);
+    scene.add(group); aliens.push(group);
+}
+
+function manageEnemySpawning() {
+    const time = Date.now();
+    let speedMult = getSpeedMultiplier();
+    
+    if (meteors.length < 5) spawnMeteors(5 - meteors.length);
+
+    // Apparition du boss exclusif tous les 5 rounds
+    if (round % 5 === 0 && !bossActive && aliens.length === 0) spawnAlien(3);
+    else if (round % 5 !== 0 && !bossActive && aliens.length < 4) {
+        if (time - lastAlienSpawnTime > Math.max(1500, 4500 / speedMult)) {
+            spawnAlien(Math.random() > 0.7 ? 2 : 1);
+            lastAlienSpawnTime = time;
+        }
+    }
+
+    // Tirs Ennemis TRÈS lents
+    let tier = Math.floor((round - 1) / 5);
+    const shotInterval = Math.max(4000, 10000 - (tier * 1000)); // Minimum 4 secondes, démarre à 10s
+    aliens.forEach(alien => {
+        if (time - alien.userData.lastShotTime > shotInterval && alien.position.z < -20) {
+            alien.userData.lastShotTime = time;
+            const proj = new THREE.Mesh(new THREE.SphereGeometry(0.8, 8, 8), new THREE.MeshBasicMaterial({ color: 0x00ff66 }));
+            proj.position.copy(alien.position);
+            const dir = new THREE.Vector3().subVectors(new THREE.Vector3(0,-2,0), proj.position).normalize();
+            proj.userData = { dir: dir, speed: 0.5 * speedMult };
+            scene.add(proj); alienProjectiles.push(proj);
+            sfx.playLaser();
+        }
+    });
+}
+
+// --- BOUCLE PRINCIPALE ---
+function update() {
+    if (!gameActive || isPaused) return;
+    const time = Date.now();
+
+    // Bouclier
+    if (shieldActive) {
+        const elapsed = time - shieldStartTime;
+        document.getElementById('shield-bar-fill').style.width = Math.max(0, ((shieldDuration - elapsed)/shieldDuration)*100) + '%';
+        if(shieldVisualMesh) shieldVisualMesh.rotation.z += 0.03;
+        if (elapsed >= shieldDuration) {
+            shieldActive = false;
+            shieldOnCooldown = true; shieldCooldownStartTime = time;
+            if(shieldVisualMesh) shieldVisualMesh.visible = false;
+            document.getElementById('shield-status-txt').innerText = "RÉGÉNÉRATION";
+            document.getElementById('shield-status-txt').style.color = '#ffaa00';
+            document.getElementById('shield-bar-fill').classList.add('cooldown');
+        }
+    } else if (shieldOnCooldown) {
+        const elapsed = time - shieldCooldownStartTime;
+        document.getElementById('shield-bar-fill').style.width = Math.min(100, (elapsed/shieldCooldownDuration)*100) + '%';
+        if (elapsed >= shieldCooldownDuration) {
+            shieldOnCooldown = false;
+            document.getElementById('shield-status-txt').innerText = "BOUCLIER PRÊT";
+            document.getElementById('shield-status-txt').style.color = '#00ff66';
+            document.getElementById('shield-bar-fill').classList.remove('cooldown');
+        }
+    }
+
+    if (keysPressed[keysConfig.keyShield.toLowerCase()] && !shieldActive && !shieldOnCooldown) {
+        shieldActive = true;
+        shieldStartTime = time;
+        if(shieldVisualMesh){ shieldVisualMesh.visible = true; shieldVisualMesh.scale.set(1,1,1); }
+        document.getElementById('shield-status-txt').innerText = "BOUCLIER ACTIF !";
+        document.getElementById('shield-status-txt').style.color = '#8000ff';
+    }
+
+    // Mouvements Joueur
+    let moveX=0, moveY=0;
+    if (keysPressed[keysConfig.keyUp.toLowerCase()]) moveY=1;
+    if (keysPressed[keysConfig.keyDown.toLowerCase()]) moveY=-1;
+    if (keysPressed[keysConfig.keyLeft.toLowerCase()]) moveX=-1;
+    if (keysPressed[keysConfig.keyRight.toLowerCase()]) moveX=1;
+    
+    playerAim.x = THREE.MathUtils.lerp(playerAim.x, moveX*40, 0.02);
+    playerAim.y = THREE.MathUtils.lerp(playerAim.y, moveY*30, 0.02);
+    camera.rotation.y = -playerAim.x*0.012; camera.rotation.x = playerAim.y*0.012; camera.rotation.z = -playerAim.x*0.008;
+    document.getElementById('pitch-ladder').style.transform = `translate(${-playerAim.x*0.8}px, ${playerAim.y*0.8}px) rotate(${-playerAim.x*0.4}deg)`;
+
+    // Tirs Laser
+    if (keysPressed[keysConfig.keyShootLaser.toLowerCase()]) {
+        if (!laserOverheated) {
+            laserHeat += 1.8;
+            sfx.playLaser();
+            const l = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 5, 4), new THREE.MeshBasicMaterial({ color: 0xffea00 }));
+            l.rotation.x = Math.PI/2;
+            l.position.set((lasers.length%2===0)?-3.5:3.5, -2, -4);
+            const dir = new THREE.Vector3().subVectors(
+    new THREE.Vector3(playerAim.x * 2.5, playerAim.y * 2.5, -300), 
+    l.position
+).normalize();
+            l.userData = { dir: dir, speed: 6.0 };
+            scene.add(l); lasers.push(l);
+
+            if (laserHeat>=100) {
+                laserOverheated=true;
+                document.getElementById('laser-ammo-txt').innerText="SURCHAUFFE";
+                document.getElementById('laser-ammo-txt').style.color='#ff3300';
+                document.getElementById('laser-bar-fill').classList.add('cooldown');
+            }
+        }
+    } else {
+        laserHeat = Math.max(0, laserHeat-1.2);
+        if (laserOverheated && laserHeat===0) {
+            laserOverheated=false; document.getElementById('laser-ammo-txt').innerText="PRÊT";
+            document.getElementById('laser-ammo-txt').style.color='#00ff66';
+            document.getElementById('laser-bar-fill').classList.remove('cooldown');
+        }
+    }
+    document.getElementById('laser-bar-fill').style.width = (100-laserHeat)+'%';
+
+    // Missiles Guidage Auto Total (Cible Physiquement la plus proche)
+    let minAbsoluteDist = Infinity;
+    let nearestObj = null;
+
+    if (keysPressed[keysConfig.keyShootMissile.toLowerCase()] && missileReady && lockedTarget) {
+        missileReady = false;
+        lastMissileTime = time;
+        const mis = new THREE.Mesh(new THREE.ConeGeometry(0.6, 3, 5), new THREE.MeshBasicMaterial({ color: 0x00ffff }));
+        mis.rotation.x = Math.PI/2;
+        mis.position.set(0, -3, -4);
+        mis.userData = { target: lockedTarget, speed: 3.5 };
+        scene.add(mis); playerMissiles.push(mis);
+        document.getElementById('missile-ammo-txt').innerText="RECHARGE"; document.getElementById('missile-ammo-txt').style.color='#ffaa00';
+        document.getElementById('missile-bar-fill').classList.add('cooldown');
+    }
+    if (!missileReady) {
+        const elapsed = time - lastMissileTime;
+        document.getElementById('missile-bar-fill').style.width = Math.min(100, (elapsed/missileCooldown)*100)+'%';
+        if (elapsed>=missileCooldown) {
+            missileReady=true; document.getElementById('missile-ammo-txt').innerText="100%";
+            document.getElementById('missile-ammo-txt').style.color='#00ffff';
+            document.getElementById('missile-bar-fill').classList.remove('cooldown');
+        }
+    }
+
+    // Étoiles Défilement
+    const posArr = stars.geometry.attributes.position.array;
+    for(let i=2; i<posArr.length; i+=3){ posArr[i]+=1.5; if(posArr[i]>10) posArr[i]=-600; }
+    stars.geometry.attributes.position.needsUpdate = true;
+
+    manageEnemySpawning();
+
+    // Déplacements & Collisions (Météores)
+    document.getElementById('radar-alert').innerText = "ZONE SÛRE"; document.getElementById('radar-alert').style.color = '#00ff66';
+    for (let i = meteors.length-1; i>=0; i--) {
+        const m = meteors[i];
+        m.position.z += m.userData.speed; m.rotation.x += m.userData.rotSpeed.x; m.rotation.y += m.userData.rotSpeed.y;
+        if (m.position.z > -100 && Math.abs(m.position.x)<20 && Math.abs(m.position.y)<15) { document.getElementById('radar-alert').innerText = "METEORE PROCHE";
+            document.getElementById('radar-alert').style.color = '#ffea00'; }
+        
+        // Impact Météore
+        if (m.position.z > -5 && Math.abs(m.position.x)<8 && Math.abs(m.position.y)<6) {
+            if (shieldActive) createExplosion(m.position, 0x8000ff, 1.2);
+            else { damagePlayer(2); createExplosion(m.position, 0x5c4033); }
+            scene.remove(m); meteors.splice(i, 1);
+            continue;
+        }
+        if (m.position.z>5) { scene.remove(m); meteors.splice(i, 1); continue; }
+        
+        // Calcul pour Visée Auto
+        let d = m.position.distanceTo(camera.position);
+        //if (d < minAbsoluteDist && m.position.z < -10) { minAbsoluteDist = d; nearestObj = m; }
+    }
+
+    // Déplacements & Collisions (Aliens)
+    for (let i = aliens.length-1; i>=0; i--) {
+        const a = aliens[i];
+        
+        // Déplacement uniquement Z, ils foncent droit comme des météores
+        a.position.z += a.userData.speed;
+        
+        // Impact Collision Vaisseau
+        if (a.position.z > -5 && Math.abs(a.position.x)<8 && Math.abs(a.position.y)<6) {
+            if (shieldActive) createExplosion(a.position, 0x8000ff, 1.5);
+            else { damagePlayer(3); createExplosion(a.position, 0xff0000, 1.5); }
+            if(a.userData.type===3){ bossActive=false;
+                document.getElementById('boss-ui').style.display='none'; checkRound(); }
+            scene.remove(a); aliens.splice(i, 1); continue;
+        }
+        if (a.position.z>5) { scene.remove(a); aliens.splice(i, 1); continue; }
+        
+        // Calcul pour Visée Auto
+        let d = a.position.distanceTo(camera.position);
+        if (d < minAbsoluteDist && a.position.z < -10) { minAbsoluteDist = d; nearestObj = a; }
+    }
+
+    // Mise à jour Réticule de Cible Auto
+    lockedTarget = nearestObj;
+    const reticle = document.getElementById('target-reticle');
+    if (lockedTarget) {
+        document.getElementById('lock-alert').style.display='block';
+        // Projeter la position 3D vers 2D pour placer le réticule HTML
+        const proj = lockedTarget.position.clone().project(camera);
+        const x = (proj.x * .5 + .5) * window.innerWidth;
+        const y = (proj.y * -.5 + .5) * window.innerHeight;
+        reticle.style.display = 'block';
+        reticle.style.left = `${x}px`; reticle.style.top = `${y}px`;
+        
+        if (time-lastLockPlayTime>800) { sfx.playLock(); lastLockPlayTime=time; } // Bip
+    } else { 
+        document.getElementById('lock-alert').style.display='none';
+        reticle.style.display = 'none';
+    }
+
+    // Lasers Joueur vs Cibles
+    for (let i = lasers.length-1; i>=0; i--) {
+        const l = lasers[i];
+        l.position.addScaledVector(l.userData.dir, l.userData.speed);
+        if (l.position.z<-250) { scene.remove(l); lasers.splice(i, 1); continue; }
+        let hit = false;
+        
+        for (let k = alienProjectiles.length-1; k>=0; k--) {
+            if (l.position.distanceTo(alienProjectiles[k].position) < 4.0) {
+                createExplosion(alienProjectiles[k].position, 0x00ff66, 0.6);
+                scene.remove(alienProjectiles[k]); alienProjectiles.splice(k, 1);
+                scene.remove(l); lasers.splice(i, 1); hit = true; break;
+            }
+        }
+        if(hit) continue;
+        
+        for (let j = aliens.length-1; j>=0; j--) {
+            const a = aliens[j];
+            if (l.position.distanceTo(a.position) < (a.userData.type===3?12:5.0)) {
+                a.userData.hp--;
+                if (a.userData.hp<=0) {
+                    let col = a.userData.type===3?0xff0000:(a.userData.type===2?0xffaa00:0xff0055);
+                    createExplosion(a.position, col, a.userData.type===3?3:1.2);
+                    score += a.userData.scoreVal; document.getElementById('score-val').innerText = String(score).padStart(4, '0');
+                    if(a.userData.type===3){ bossActive=false; document.getElementById('boss-ui').style.display='none'; }
+                    scene.remove(a);
+                    aliens.splice(j, 1); checkRound();
+                } else {
+                    createExplosion(l.position, 0xffea00, 0.5);
+                    if (a.userData.type===3) document.getElementById('boss-bar-fill').style.width = Math.max(0,(a.userData.hp/a.userData.maxHp)*100)+'%';
+                }
+                scene.remove(l);
+                lasers.splice(i, 1); hit = true; break;
+            }
+        }
+        if(hit) continue;
+        
+        for (let j = meteors.length-1; j>=0; j--) {
+            if (l.position.distanceTo(meteors[j].position) < 6.0) {
+                createExplosion(meteors[j].position, 0x5c4033, 1.0);
+                scene.remove(meteors[j]); meteors.splice(j, 1);
+                scene.remove(l); lasers.splice(i, 1); break;
+            }
+        }
+    }
+
+    // Missiles Tête Chercheuse
+    for (let i = playerMissiles.length-1; i>=0; i--) {
+        const m = playerMissiles[i];
+        const t = m.userData.target;
+        if (t && t.parent) {
+            const dir = new THREE.Vector3().subVectors(t.position, m.position).normalize();
+            m.position.addScaledVector(dir, m.userData.speed); m.lookAt(t.position);
+            
+            if (m.position.distanceTo(t.position) < (t.userData.type===3?15:6.0)) {
+                showHitText(); // DECLENCHE LE TEXTE "CIBLE TOUCHEE"
+                
+                if (t.userData.hp !== undefined) {
+                    t.userData.hp -= 4; // Dégâts massifs
+                    if(t.userData.hp<=0){
+                        createExplosion(t.position, 0x00ffff, 2.5);
+                        if(t.userData.scoreVal) { score += t.userData.scoreVal; document.getElementById('score-val').innerText = String(score).padStart(4, '0'); }
+                        if(t.userData.type===3){ bossActive=false; document.getElementById('boss-ui').style.display='none'; }
+                        scene.remove(t);
+                        const aIdx = aliens.indexOf(t); if(aIdx>-1) aliens.splice(aIdx, 1);
+                        checkRound();
+                    } else {
+                        createExplosion(m.position, 0x00ffff, 1.5);
+                        if(t.userData.type===3) document.getElementById('boss-bar-fill').style.width = Math.max(0,(t.userData.hp/t.userData.maxHp)*100)+'%';
+                    }
+                } else {
+                    // Météore
+                    createExplosion(t.position, 0x5c4033, 2.0);
+                    scene.remove(t);
+                    const mIdx = meteors.indexOf(t); if(mIdx>-1) meteors.splice(mIdx, 1);
+                }
+                scene.remove(m);
+                playerMissiles.splice(i, 1);
+            }
+        } else {
+            m.translateZ(m.userData.speed);
+            if (m.position.z < -250) { scene.remove(m); playerMissiles.splice(i, 1); }
+        }
+    }
+
+    // Projectiles Ennemis (0.5 Dégâts par Tir)
+    for (let i = alienProjectiles.length-1; i>=0; i--) {
+        const ap = alienProjectiles[i];
+        ap.position.addScaledVector(ap.userData.dir, ap.userData.speed);
+        if (ap.position.z > -2.0) {
+            if (shieldActive) createExplosion(ap.position, 0x8000ff, 1.0);
+            else { damagePlayer(0.5); createExplosion(ap.position, 0x00ff66, 0.8); }
+            scene.remove(ap);
+            alienProjectiles.splice(i, 1); continue;
+        }
+        if (Math.abs(ap.position.x) > 150 || Math.abs(ap.position.y) > 100 || ap.position.z > 20) {
+            scene.remove(ap);
+            alienProjectiles.splice(i, 1);
+        }
+    }
+
+    renderer.render(scene, camera);
+    requestAnimationFrame(update);
+}
+
+// MISE À JOUR DE LA VERIFICATION DE ROUND + ANNONCE RADIO DU COMMANDANT
+function checkRound() {
+    const ptsReq = round * 1000;
+    if (score >= ptsReq) {
+        round++; document.getElementById('round-val').innerText = round;
+        document.getElementById('round-goal-txt').innerText = `OBJECTIF : ${round * 1000} PTS`;
+        aliens.forEach(a => scene.remove(a)); aliens.length=0; bossActive=false;
+        document.getElementById('boss-ui').style.display='none';
+        
+        let msg = `COMMANDANT : SECTEUR SÉCURISÉ. BEAU TRAVAIL ! ENTRÉE DANS LE ROUND ${round}.`;
+        
+        if (round % 5 === 0) {
+            msg = `COMMANDANT : Bien joué pour ces ${round} rounds ! Attention, un énorme vaisseau Boss arrive !`;
+        }
+        
+        triggerRadioTransmission(msg);
+    }
+}
+
+let radioTimeout;
+function triggerRadioTransmission(text) {
+    const box = document.getElementById('radio-transmission'), label = document.getElementById('radio-text');
+    box.style.display = 'block'; label.innerText = ""; clearTimeout(radioTimeout);
+    let index = 0;
+    function typeChar() {
+        if (index < text.length) { label.innerText += text[index]; index++;
+            radioTimeout = setTimeout(typeChar, 30); } 
+        else radioTimeout = setTimeout(() => { box.style.display = 'none'; }, 5000);
+    }
+    typeChar();
+}
+
+// MISE À JOUR DE LA MORT POUR L'ECRAN DE FIN
+function triggerDeathAnimation() {
+    gameActive = false; sfx.playExplosion();
+    let count = 0;
+    const crash = setInterval(() => {
+        camera.rotation.z += 0.2; camera.position.y -= 0.1;
+        createExplosion(new THREE.Vector3(0, -2, -10), 0xff3300, 2.0);
+        if (++count > 25) {
+            clearInterval(crash);
+            ['hud-top','crosshair-container','target-reticle','pitch-ladder','cockpit-frame','wing-l','wing-r','boss-ui'].forEach(id=>document.getElementById(id).style.display='none');
+            if (score > bestScore) { bestScore = score; localStorage.setItem('starditwan_best', bestScore); }
+           
+            document.getElementById('final-score').innerText = String(score).padStart(4, '0');
+            document.getElementById('final-round').innerText = round; 
+            document.getElementById('gameover-container').style.display = 'flex';
+        }
+    }, 60);
+}
+
+function togglePause() {
+    if (!gameActive) return;
+    isPaused = !isPaused;
+    document.getElementById('pause-container').style.display = isPaused ? 'flex' : 'none';
+    if (!isPaused) requestAnimationFrame(update);
+}
+
+document.getElementById('btn-play').addEventListener('click', () => {
+    sfx.init(); sfx.startAmbientMusic();
+    ['menu-container','gameover-container'].forEach(id=>document.getElementById(id).style.display='none');
+    ['hud-top','cockpit-frame'].forEach(id=>document.getElementById(id).style.display='flex');
+    ['crosshair-container','pitch-ladder','wing-l','wing-r'].forEach(id=>document.getElementById(id).style.display='block');
+    init(); resetGame();
+});
+document.getElementById('btn-restart').addEventListener('click', () => {
+    document.getElementById('gameover-container').style.display='none';
+    ['hud-top','cockpit-frame'].forEach(id=>document.getElementById(id).style.display='flex');
+    ['crosshair-container','pitch-ladder','wing-l','wing-r'].forEach(id=>document.getElementById(id).style.display='block');
+    resetGame();
+});
+document.getElementById('btn-resume').addEventListener('click', togglePause);
+document.getElementById('btn-quit').addEventListener('click', () => {
+    isPaused=false; gameActive=false;
+    ['pause-container','hud-top','crosshair-container','target-reticle','pitch-ladder','cockpit-frame','wing-l','wing-r','boss-ui'].forEach(id=>document.getElementById(id).style.display='none');
+    document.getElementById('menu-container').style.display = 'flex';
+});
+</script>
+</body>
+</html>
