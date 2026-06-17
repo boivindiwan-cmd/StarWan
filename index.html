@@ -1,0 +1,1849 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StarDitWan - 32X Tactical Edition</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        body { 
+            margin: 0;
+            overflow: hidden; 
+            background: #000; 
+            font-family: 'Press Start 2P', monospace; 
+            user-select: none;
+        }
+        canvas { display: block; }
+
+        /* --- THEME VIOLET / JAUNE POUR LES MENUS --- */
+        #menu-container, #gameover-container, #pause-container {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: #1a002b;
+            color: #ffea00;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            text-align: center;
+            box-sizing: border-box;
+            border: 10px double #8000ff;
+        }
+
+        #gameover-container { background: rgba(26, 0, 43, 0.95); border-color: #ffea00; display: none; }
+        #pause-container { background: rgba(26, 0, 43, 0.85); border-color: #8000ff; display: none; }
+
+        .title {
+            font-size: 72px;
+            color: #ffea00;
+            text-shadow: 4px 4px 0px #000, 8px 8px 0px #8000ff;
+            margin-bottom: 5px;
+            letter-spacing: 4px;
+            animation: float 3s ease-in-out infinite;
+        }
+        .subtitle {
+            font-size: 20px;
+            color: #d480ff;
+            margin-bottom: 40px;
+            text-shadow: 2px 2px 0px #8000ff;
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+
+        @keyframes blinkMenu {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .btn {
+            background: #330066;
+            color: #ffea00;
+            font-family: 'Press Start 2P', monospace;
+            padding: 25px 60px;
+            font-size: 24px;
+            border: 5px solid #8000ff;
+            cursor: pointer;
+            box-shadow: 8px 8px 0px #ffea00;
+            outline: none;
+            margin: 15px;
+            transition: all 0.1s;
+            letter-spacing: 4px;
+        }
+        .btn:hover {
+            background: #ffea00;
+            color: #330066;
+            box-shadow: 8px 8px 0px #8000ff;
+            transform: translate(-2px, -2px);
+        }
+        .btn.blink { animation: blinkMenu 1.5s infinite; }
+
+        /* Liste des contrôles interactifs */
+        .controls-panel {
+            background: #0d001a;
+            border: 3px solid #8000ff;
+            padding: 20px;
+            margin-bottom: 20px;
+            max-width: 650px;
+            text-align: left;
+        }
+        .control-row {
+            margin: 10px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 10px;
+            color: #d480ff;
+        }
+        .key-btn {
+            background: #330066;
+            color: #ffea00;
+            border: 2px solid #ffea00;
+            padding: 5px 10px;
+            cursor: pointer;
+            font-size: 10px;
+            font-family: 'Press Start 2P', monospace;
+            min-width: 120px;
+            text-align: center;
+        }
+        .key-btn:hover { background: #ffea00; color: #330066; }
+
+        .settings-row {
+            display: flex;
+            gap: 20px; margin-bottom: 20px; font-size: 10px; color: #ffea00;
+        }
+        .settings-row input { accent-color: #8000ff; cursor: pointer; width: 120px; }
+
+        /* HUD Supérieur de vol */
+        #hud-top {
+            position: absolute;
+            top: 20px; left: 05%; width: 90%;
+            display: none; justify-content: space-between;
+            color: #00ff66; font-size: 12px; z-index: 10;
+            pointer-events: none;
+            text-shadow: 2px 2px 0px #000;
+        }
+
+        /* Boss UI */
+        #boss-ui {
+            position: absolute;
+            top: 80px; left: 50%; transform: translateX(-50%);
+            display: none; width: 350px; text-align: center; z-index: 10; pointer-events: none;
+        }
+        .boss-name { font-size: 10px; color: #ff0033; margin-bottom: 5px; text-shadow: 2px 2px 0px #000; }
+        .boss-bar { width: 100%; height: 12px; background: #330000; border: 2px solid #ff0033; border-radius: 4px; overflow: hidden; }
+        #boss-bar-fill { width: 100%; height: 100%; background: #ff0033; transition: width 0.2s; }
+
+        /* NOUVEAU RETICULE EN CROIX ROUGE */
+        #target-reticle {
+            position: absolute;
+            width: 50px; height: 50px; border: 2px solid #ff0033;
+            transform: translate(-50%, -50%); pointer-events: none; z-index: 9; display: none;
+            border-radius: 50%;
+        }
+        #target-reticle::before { content: ''; position: absolute; background: #ff0033; top: 50%; left: -15px; right: -15px; height: 2px; transform: translateY(-50%); }
+        #target-reticle::after { content: ''; position: absolute; background: #ff0033; left: 50%; top: -15px; bottom: -15px; width: 2px; transform: translateX(-50%); }
+
+        /* TEXTES DU RETICULE */
+        #lock-alert {
+            position: absolute;
+            top: -25px; left: 50%; transform: translateX(-50%);
+            color: #ff0033; font-size: 9px; animation: blinkFast 0.2s infinite alternate;
+            text-shadow: 1px 1px 0px #000; white-space: nowrap; font-weight: bold;
+        }
+        #hit-alert {
+            position: absolute;
+            bottom: -25px; left: 50%; transform: translateX(-50%);
+            color: #ff0033; font-size: 10px; display: none; font-weight: bold;
+            text-shadow: 1px 1px 0px #000; white-space: nowrap;
+        }
+        @keyframes blinkFast { from { opacity: 1; } to { opacity: 0.1; } }
+
+        /* Réticule central statique */
+        #crosshair-container {
+            position: absolute;
+            top: 50%; left: 50%; width: 60px; height: 60px;
+            transform: translate(-50%, -50%); pointer-events: none; z-index: 9; display: none;
+        }
+        .crosshair-element { position: absolute; border: 2px solid #ff0055; }
+        .ch-tl { top: 0; left: 0; width: 15px; height: 15px; border-right: none; border-bottom: none; }
+        .ch-tr { top: 0; right: 0; width: 15px; height: 15px; border-left: none; border-bottom: none; }
+        .ch-bl { bottom: 0; left: 0; width: 15px; height: 15px; border-right: none; border-top: none; }
+        .ch-br { bottom: 0; right: 0; width: 15px; height: 15px; border-left: none; border-top: none; }
+        .ch-dot { top: 50%; left: 50%; width: 6px; height: 6px; background: #ff0055; transform: translate(-50%, -50%); border-radius: 50%; }
+
+        /* Transmission Radio */
+        #radio-transmission {
+            position: absolute;
+            bottom: 120px; left: 50%; transform: translateX(-50%); width: 600px;
+            background: rgba(0, 20, 10, 0.85); border: 3px solid #00ff66; color: #00ff66;
+            padding: 15px; display: none; font-size: 10px; line-height: 1.6; z-index: 10; pointer-events: none;
+        }
+
+        /* Structure du Cockpit */
+        #cockpit-frame {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; display: none; flex-direction: column; justify-content: space-between; z-index: 8;
+        }
+        .cockpit-top { width: 100%; height: 5vh; background: linear-gradient(to bottom, #111, transparent); border-bottom: 2px solid #8000ff; }
+        .cockpit-bottom {
+            width: 100%;
+            height: 25vh; background: #111115; border-top: 4px solid #8000ff;
+            display: flex; justify-content: space-around; align-items: center; padding: 10px; box-sizing: border-box;
+        }
+        .screen-panel {
+            width: 28%;
+            height: 90%; background: #000d05; border: 3px solid #333;
+            box-shadow: inset 0 0 15px #004411; padding: 10px; box-sizing: border-box; color: #00ff66;
+            font-size: 8px; display: flex; flex-direction: column; justify-content: space-between;
+        }
+        .panel-title { color: #ffaa00; text-align: center; border-bottom: 2px dashed #00ff66; padding-bottom: 4px; font-size: 9px; }
+
+        .hearts-container { display: flex; gap: 4px; justify-content: center; margin-top: 5px; flex-wrap: wrap; }
+        .heart { font-size: 12px; color: #ff0055; text-shadow: 1px 1px 0px #000; }
+        .heart.empty { color: #330011; }
+
+        .gauge-bar { width: 100%; height: 10px; background: #222; border: 1px solid #00ff66; margin-top: 5px; overflow: hidden; }
+        .gauge-fill { height: 100%; background: #00ff66; transition: width 0.1s; }
+        .gauge-fill.cooldown { background: #ffaa00 !important; }
+
+        #wing-l, #wing-r {
+            position: absolute;
+            bottom: 25vh; width: 10vw; height: 18vh;
+            background: #222; border: 3px solid #8000ff; z-index: 7; display: none; transition: border-color 0.2s;
+        }
+        #wing-l { left: 0; transform: skewY(15deg); border-left: none; }
+        #wing-r { right: 0; transform: skewY(-15deg); border-right: none; }
+
+        #pitch-ladder {
+            position: absolute;
+            top: 25%; left: 35%; width: 30%; height: 50%;
+            border-left: 2px dashed rgba(128,0,255,0.4); border-right: 2px dashed rgba(128,0,255,0.4);
+            pointer-events: none; z-index: 6;
+            display: none;
+        }
+    
+        /* ====== MENU PRINCIPAL 3 COLONNES ====== */
+        #menu-wrapper {
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            gap: 20px;
+            width: 100%;
+            max-width: 1100px;
+            height: 100%;
+            padding-top: 5vh;
+            box-sizing: border-box;
+        }
+
+        /* -- Panneau Tuto (gauche) AGANDI -- */
+        #tuto-panel {
+            flex: 0 0 350px;
+            background: #0d001a;
+            border: 4px solid #8000ff;
+            padding: 25px;
+            max-height: 80vh;
+            overflow-y: auto;
+            text-align: left;
+            box-shadow: 10px 10px 0px rgba(0,0,0,0.5);
+        }
+
+        #tuto-panel h3 {
+            color: #ffea00;
+            font-size: 14px;
+            text-align: center;
+            margin: 0 0 20px 0;
+            border-bottom: 3px solid #8000ff;
+            padding-bottom: 15px;
+            text-shadow: 2px 2px 0px #8000ff;
+        }
+
+        .tuto-section { margin-bottom: 20px; }
+
+        .tuto-section h4 {
+            color: #d480ff;
+            font-size: 10px;
+            margin: 0 0 10px 0;
+            text-transform: uppercase;
+        }
+
+        .tuto-item {
+            display: flex;
+            justify-content: space-between;
+            font-size: 8px;
+            color: #eee;
+            margin: 8px 0;
+            line-height: 1.4;
+        }
+
+        .tuto-item span:first-child { color: #ffaa00; font-weight: bold; }
+
+        .tuto-score-hint {
+            background: #1a002b;
+            border: 2px solid #8000ff;
+            padding: 10px;
+            margin-top: 15px;
+            font-size: 10px;
+            color: #d480ff;
+        }
+
+        .tuto-tip {
+            background: #0a0015;
+            border: 2px solid #00ff66;
+            padding: 10px;
+            margin-top: 15px;
+            font-size: 10px;
+            color: #00ff66;
+            line-height: 1.5;
+        }
+
+        /* -- Panneau Centre (titre + controles + pseudo) -- */
+        #menu-center {
+            flex: 0 0 auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 480px;
+        }
+
+        /* -- Panneau High Scores (droite) -- */
+        #scores-panel {
+            flex: 0 0 320px;
+            background: #0d001a;
+            border: 4px solid #ffea00;
+            padding: 25px;
+            max-height: 80vh;
+            overflow-y: auto;
+            text-align: center;
+            box-shadow: 0 0 20px rgba(255,234,0,0.2);
+        }
+        #scores-panel h3 {
+            color: #ffea00;
+            font-size: 18px;
+            margin: 0 0 15px 0;
+            border-bottom: 3px solid #ffea00;
+            padding-bottom: 12px;
+            text-shadow: 3px 3px 0px #000;
+        }
+        .score-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+            color: #bbb;
+            padding: 6px 4px;
+            border-bottom: 2px solid #330066;
+        }
+        .score-row .rank { color: #d480ff; min-width: 25px; text-align: left; }
+        .score-row .name { color: #ffea00; flex: 1; text-align: left; padding-left: 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .score-row .pts { color: #fff; min-width: 60px; text-align: right; }
+        .score-row.top1 { background: #1a0030; border-color: #ffea00; }
+        .score-row.top1 .rank { color: #ffea00; font-size: 10px; }
+        .score-row.top2 { background: #110022; }
+        .score-row.top2 .rank { color: #ccc; }
+        .score-row.top3 .rank { color: #cd7f32; }
+        #scores-loading { font-size: 8px; color: #8000ff; }
+        #scores-error { font-size: 7px; color: #ff3300; }
+        .score-empty { font-size: 8px; color: #555; padding: 10px; }
+
+        /* -- Champ Pseudo -- */
+        #pseudo-input {
+            background: #0d001a;
+            border: 3px solid #8000ff;
+            color: #ffea00;
+            font-family: 'Press Start 2P', monospace;
+            font-size: 12px;
+            padding: 10px 15px;
+            width: 280px;
+            text-align: center;
+            outline: none;
+            margin-bottom: 15px;
+            box-shadow: 0 0 10px rgba(128,0,255,0.3);
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        #pseudo-input:focus {
+            border-color: #ffea00;
+            box-shadow: 0 0 15px rgba(255,234,0,0.4);
+        }
+        #pseudo-input::placeholder { color: #8000ff; }
+
+        /* Scrollbar personnalisée */
+        #tuto-panel::-webkit-scrollbar, #scores-panel::-webkit-scrollbar { width: 4px; }
+        #tuto-panel::-webkit-scrollbar-thumb, #scores-panel::-webkit-scrollbar-thumb { background: #8000ff; }
+
+    </style>
+</head>
+<body>
+
+<div id="menu-container">
+    <div id="menu-wrapper">
+
+        <div id="tuto-panel">
+            <h3>📖 GUIDE DE VOL</h3>
+
+            <div class="tuto-section">
+                <h4>🎮 COMMANDES (personnalisable)</h4>
+                <div class="tuto-item"><span>MONTER :</span> <span>Z / ↑</span></div>
+                <div class="tuto-item"><span>DESCENDRE :</span> <span>S / ↓</span></div>
+                <div class="tuto-item"><span>GAUCHE :</span> <span>Q / ←</span></div>
+                <div class="tuto-item"><span>DROITE :</span> <span>D / →</span></div>
+                <div class="tuto-item"><span>LASER :</span> <span>ESPACE</span></div>
+                <div class="tuto-item"><span>MISSILE :</span> <span>CLIC GAUCHE</span></div>
+                <div class="tuto-item"><span>BOUCLIER :</span> <span>CLIC DROIT</span></div>
+                <div class="tuto-item"><span>PAUSE :</span> <span>P / ECHAP</span></div>
+            </div>
+
+            <div class="tuto-section">
+                <h4>⚔️ ARMES & DÉGÂTS</h4>
+                <div class="tuto-item"><span>LASER SPATIAL :</span> <span style="color:#00ff66;">5 Dégâts</span></div>
+                <div class="tuto-item"><span>MISSILE :</span> <span style="color:#00ffff;">50 Dégâts</span></div>
+            </div>
+
+            <div class="tuto-section">
+                <h4>🛸 VAISSEAUX ENNEMIS</h4>
+                <div class="tuto-item"><span style="color:#00ffff;">⬡ TYPE 1 (Petit)</span> <span>25 PV</span></div>
+                <div class="tuto-item"><span style="color:#ff8800;">⬡ TYPE 2 (Moyen)</span> <span>50 PV</span></div>
+                <div class="tuto-item"><span style="color:#cd7f32;">⬢ BOSS (Capital)</span> <span>200 PV</span></div>
+            </div>
+
+            <div class="tuto-section">
+                <h4>💀 BOSS - BANU MERCHANTMAN</h4>
+                <div class="tuto-item"><span>🛡 Bouclier</span> <span style="color:#00aaff;">150 PV</span></div>
+                <div class="tuto-item"><span>💀 Coque</span> <span style="color:#ff4444;">200 PV</span></div>
+                <div class="tuto-item"><span>⚡ Apparition</span> <span>1× / 5 rounds</span></div>
+            </div>
+
+            <div class="tuto-section">
+                <h4>⚠️ PÉNALITÉS DE FUITE</h4>
+                <div class="tuto-item"><span>Petit passé</span> <span style="color:#ff4444;">-2 ❤️</span></div>
+                <div class="tuto-item"><span>Moyen passé</span> <span style="color:#ff4444;">-3 ❤️</span></div>
+                <div class="tuto-item"><span>Boss passé</span> <span style="color:#ff4444;">-5 ❤️</span></div>
+            </div>
+
+            <div class="tuto-tip">
+                💡 CONSEILS :<br>
+                • Bouclier [CLIC DROIT] = immunité<br>
+                • Les pénalités de fuite percent ton bouclier ! Détruis-les !<br>
+                • Détruis le BOUCLIER du Boss avant de toucher sa coque !<br>
+                • Missiles = tête chercheuse auto
+            </div>
+        </div>
+
+        <div id="menu-center">
+            <div class="title">STARDITWAN</div>
+            <div class="subtitle">32X TACTICAL SIMULATION</div>
+
+            <input type="text" id="pseudo-input" placeholder="ENTREZ VOTRE PSEUDO" maxlength="16" autocomplete="off">
+
+            <div class="controls-panel">
+                <div style="text-align: center; color: #ffea00; margin-bottom: 15px; font-size: 12px; text-shadow: 2px 2px 0px #8000ff;">CONFIGURATION TACTIQUE</div>
+                <div style="text-align: center; color: #d480ff; margin-bottom: 20px; font-size: 8px;">(CLIQUEZ SUR UN BOUTON POUR ASSIGNER UNE TOUCHE OU UN CLIC SOURIS)</div>
+                <div style="display: flex; gap: 20px;">
+                    <div style="flex: 1;">
+                        <div class="control-row"><span>MONTER :</span><button class="key-btn" onclick="assignKey('keyUp')">Z</button></div>
+                        <div class="control-row"><span>DESCENDRE :</span><button class="key-btn" onclick="assignKey('keyDown')">S</button></div>
+                        <div class="control-row"><span>GAUCHE :</span><button class="key-btn" onclick="assignKey('keyLeft')">Q</button></div>
+                        <div class="control-row"><span>DROITE :</span><button class="key-btn" onclick="assignKey('keyRight')">D</button></div>
+                    </div>
+                    <div style="flex: 1;">
+                        <div class="control-row"><span>LASER :</span><button class="key-btn" onclick="assignKey('keyShootLaser')">SPACE</button></div>
+                        <div class="control-row"><span>MISSILE :</span><button class="key-btn" onclick="assignKey('keyShootMissile')">CLIC GAUCHE</button></div>
+                        <div class="control-row"><span>BOUCLIER :</span><button class="key-btn" onclick="assignKey('keyShield')">CLIC DROIT</button></div>
+                        <div class="control-row"><span>PAUSE :</span><button class="key-btn" style="pointer-events:none;">P / ECHAP</button></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-row">
+                <div>SFX VOL: <input type="range" id="vol-sfx" min="0" max="1" step="0.1" value="0.5"></div>
+                <div>MUSIC VOL: <input type="range" id="vol-music" min="0" max="1" step="0.1" value="0.3"></div>
+            </div>
+
+            <button class="btn blink" id="btn-play">DÉMARRER VOL</button>
+        </div>
+
+        <div id="scores-panel">
+            <h3>🏆 HIGH SCORES</h3>
+            <div id="scores-loading">CHARGEMENT...</div>
+            <div id="scores-list"></div>
+            <div id="scores-error"></div>
+            <div style="font-size: 7px; color: #555; margin-top: 10px; line-height: 1.5;">
+                Round actuel : <span id="local-best-round" style="color:#8000ff;">—</span><br>
+                Meilleur score local :<br>
+                <span id="local-best-score" style="color:#ffea00; font-size:9px;">0000</span>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<div id="gameover-container">
+    <div class="title">FIN DE TRANSMISSION</div>
+    <div class="subtitle">APPAREIL DÉTRUIT</div>
+    <div style="font-size: 14px; margin-bottom: 5px;">SCORE TOTAL : <span id="final-score" style="color:#fff;">0000</span></div>
+    <div style="font-size: 14px; margin-bottom: 15px; color: #ffaa00;">ROUNDS SURVÉCUS : <span id="final-round" style="color:#fff;">0</span></div>
+    <div id="gameover-pseudo-display" style="font-size: 10px; color: #d480ff; margin-bottom: 15px;">PILOTE : <span id="final-pseudo" style="color:#ffea00;">INCONNU</span></div>
+    <div id="score-submit-status" style="font-size: 9px; color: #00ff66; margin-bottom: 10px; min-height: 14px;"></div>
+    <div style="font-size: 10px; margin-bottom: 20px; color: #888;">MEILLEUR SCORE : <span id="gameover-best" style="color:#ffea00;">0000</span></div>
+    <button class="btn blink" id="btn-restart">RECONSTRUIRE</button>
+    <button class="btn" id="btn-main-menu" style="margin-top:10px; background-color: #4a0080; border-color: #8000ff; color: #ffea00; box-shadow: 8px 8px 0px #8000ff;">MENU PRINCIPAL</button>
+</div>
+
+<div id="pause-container">
+    <div class="title">SIMULATION EN PAUSE</div>
+    <button class="btn" id="btn-resume">REPRENDRE LE VOL</button>
+    <button class="btn" id="btn-quit" style="border-color:#ff0033; color:#ff0033; box-shadow:5px 5px 0px #ff0033;">ABANDONNER MISSION</button>
+</div>
+
+<div id="hud-top">
+    <div>ROUND: <span id="round-val" style="color:#ffaa00;">1</span></div>
+    <div>SCORE: <span id="score-val" style="color:#fff;">0000</span></div>
+    <div>BEST: <span id="best-val" style="color:#00ffff;">0000</span></div>
+</div>
+
+<div id="target-reticle">
+    <div id="lock-alert">MISSILE CIBLÉ</div>
+    <div id="hit-alert">CIBLE TOUCHÉE</div>
+</div> 
+
+<div id="crosshair-container">
+    <div class="crosshair-element ch-tl"></div>
+    <div class="crosshair-element ch-tr"></div>
+    <div class="crosshair-element ch-bl"></div>
+    <div class="crosshair-element ch-br"></div>
+    <div class="crosshair-element ch-dot"></div>
+</div>
+
+<div id="radio-transmission">
+    <span style="color: #ffaa00; font-weight: bold;">[TRANSMISSION QG]</span><br>
+    <span id="radio-text">ATTENTE D'ORDRES...</span>
+</div>
+
+<div id="pitch-ladder"></div>
+<div id="wing-l"></div>
+<div id="wing-r"></div>
+
+<div id="cockpit-frame">
+    <div class="cockpit-top"></div>
+    <div class="cockpit-bottom">
+        <div class="screen-panel">
+            <div class="panel-title">SANTÉ BLINDAGE</div>
+            <div style="text-align:center; font-size:7px; margin-top:5px;">SANTÉ DU PILOTE (10 HP)</div>
+            <div class="hearts-container" id="hearts-box"></div>
+            <div style="text-align: center; font-size: 7px; margin-top: 10px; color: #ffaa00;" id="shield-status-txt">BOUCLIER PRÊT</div>
+            <div class="gauge-bar"><div class="gauge-fill" id="shield-bar-fill" style="width: 100%;"></div></div>
+        </div>
+
+        <div class="screen-panel" style="border-color: #8000ff; background: #0c000c; text-align: center; justify-content: center;">
+            <div class="panel-title" style="color: #8000ff; border-color: #8000ff;">RADAR DE DANGER</div>
+            <div style="font-size: 9px; margin-top: 10px; color: #00ff66;" id="radar-alert">ZONE SÛRE</div>
+            <div style="font-size: 7px; color: #777; margin-top: 5px;">ALIGNEMENT OPTIMAL REQUIS</div>
+            <div style="font-size: 8px; color: #ffaa00; margin-top: 10px;" id="round-goal-txt">OBJECTIF : 1000 PTS</div>
+        </div>
+
+        <div class="screen-panel">
+            <div class="panel-title">ARMEMENT</div>
+            <div>
+                <span style="display:flex; justify-content:space-between;">
+                    <span>LASER SPATIAL :</span><span id="laser-ammo-txt">PRÊT</span>
+                </span>
+                <div class="gauge-bar"><div class="gauge-fill" id="laser-bar-fill" style="width: 100%;"></div></div>
+            </div>
+            <div style="margin-top: 5px;">
+                <span style="display:flex; justify-content:space-between;">
+                    <span>MISSILE TACTIQUE :</span><span id="missile-ammo-txt" style="color:#00ffff;">100%</span>
+                </span>
+                <div class="gauge-bar" style="border-color:#00ffff;">
+                    <div class="gauge-fill" id="missile-bar-fill" style="width: 100%; background:#00ffff;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="boss-ui">
+    <div class="boss-name" style="color:#ff4444;" id="boss-title">⚠ BANU MERCHANTMAN</div>
+    <div class="boss-name" style="color:#00aaff; font-size:8px;">🛡 BOUCLIER: <span id="boss-shield-text">150</span> PV</div>
+    <div class="boss-bar" style="border-color:#00aaff; margin-bottom:5px;"><div id="boss-shield-bar-fill" style="background:#00aaff; width:100%;"></div></div>
+    <div class="boss-name" style="color:#ff4444; font-size:8px;">💀 COQUE: <span id="boss-hp-text">200</span> PV</div>
+    <div class="boss-bar" style="border-color:#ff4444;"><div id="boss-bar-fill" style="background:#ff4444; width:100%;"></div></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+// ======================================================
+// ======== SUPABASE + HIGH SCORES + PSEUDO ============
+// ======================================================
+
+const SUPABASE_URL = 'https://efqjnxzrxxmwzkdswyax.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_Az9EP5LzBUhftsp5l_DILg_4PHdy0SI';
+
+let supabaseClient = null;
+let useSupabase = false;
+
+// 1. LA VARIABLE GLOBALE POUR LE PSEUDO
+let globalPseudo = "PILOTE";
+
+function initSupabase() {
+    try {
+        if (typeof window.supabase !== 'undefined') {
+            supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            useSupabase = true;
+            console.log("Supabase initialisé avec succès !");
+        } else {
+            useSupabase = false;
+            console.error("Erreur : la librairie Supabase n'est pas chargée.");
+        }
+    } catch(e) {
+        useSupabase = false;
+        console.error("Erreur lors de l'initialisation de Supabase :", e);
+    }
+}
+
+function savePseudo(p) {
+    globalPseudo = p || 'PILOTE';
+    try {
+        localStorage.setItem('starditwan_pseudo', globalPseudo);
+    } catch(e) {}
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+    // Récupération sécurisée au chargement de la page
+    try {
+        const saved = localStorage.getItem('starditwan_pseudo');
+        if (saved) globalPseudo = saved;
+    } catch(e) {}
+
+    const pseudoInput = document.getElementById('pseudo-input');
+    if (pseudoInput) {
+        // Afficher vide si le pseudo par défaut est PILOTE, sinon afficher le pseudo sauvegardé
+        pseudoInput.value = (globalPseudo === 'PILOTE') ? '' : globalPseudo;
+        // 2. LA CAPTURE DU TEXTE (mise à jour en temps réel)
+        pseudoInput.addEventListener('input', (e) => savePseudo(e.target.value.trim().toUpperCase()));
+    }
+
+    try { initSupabase(); } catch(e) { console.error("initSupabase error:", e); useSupabase = false; }
+    try { fetchHighScores(); } catch(e) { console.error("fetchHighScores error:", e); }
+});
+
+function getLocalScores() {
+    try {
+        return JSON.parse(localStorage.getItem('starditwan_scores') || '[]');
+    } catch { return []; }
+}
+function saveLocalScore(pseudo, pts, rnd) {
+    const scores = getLocalScores();
+    scores.push({ pseudo, pts, rnd, date: Date.now() });
+    scores.sort((a, b) => b.pts - a.pts);
+    scores.splice(10);
+    try { localStorage.setItem('starditwan_scores', JSON.stringify(scores)); } catch(e){}
+}
+
+async function fetchHighScores() {
+    const listEl = document.getElementById('scores-list');
+    const loadingEl = document.getElementById('scores-loading');
+    const errorEl = document.getElementById('scores-error');
+
+    displayLocalScores();
+
+    if (!useSupabase) {
+        if (loadingEl) loadingEl.textContent = 'MODE LOCAL';
+        return;
+    }
+
+    if (loadingEl) loadingEl.textContent = 'CHARGEMENT...';
+    if (errorEl) errorEl.textContent = '';
+
+    try {
+        const { data, error } = await supabaseClient
+            .from('highscores')
+            .select('pseudo, score, round')
+            .order('score', { ascending: false })
+            .limit(10);
+
+        if (error) {
+            console.error("Supabase SELECT Error :", error);
+            throw error;
+        }
+
+        if (data && data.length > 0) {
+            if (loadingEl) loadingEl.style.display = 'none';
+            if (!listEl) return;
+            listEl.innerHTML = '';
+            data.forEach((row, i) => {
+                const div = document.createElement('div');
+                div.className = 'score-row' + (i === 0 ? ' top1' : i === 1 ? ' top2' : i === 2 ? ' top3' : '');
+                const medal = ['🥇','🥈','🥉',' ',' ',' ',' ',' ',' ',' '][i];
+                div.innerHTML = `<span class="rank">${medal}#${i+1}</span><span class="name">${escapeHtml(row.pseudo)}</span><span class="pts">${String(row.score).padStart(5,'0')} pts</span>`;
+                listEl.appendChild(div);
+            });
+        } else {
+            if (loadingEl) loadingEl.textContent = 'AUCUN SCORE ENCORE';
+        }
+    } catch(e) {
+        if (loadingEl) loadingEl.textContent = '';
+        if (errorEl) errorEl.textContent = 'ERREUR SUPABASE (Verifie tes Policies RLS !)';
+    }
+}
+
+function displayLocalScores() {
+    const listEl = document.getElementById('scores-list');
+    const scores = getLocalScores();
+    
+    if (scores.length > 0) {
+        document.getElementById('local-best-score').innerText = String(scores[0].pts).padStart(4, '0');
+        document.getElementById('local-best-round').innerText = scores[0].rnd || '—';
+    }
+
+    if (!listEl) return;
+    if (scores.length === 0) return;
+    listEl.innerHTML = '';
+    scores.slice(0, 10).forEach((row, i) => {
+        const div = document.createElement('div');
+        div.className = 'score-row' + (i === 0 ? ' top1' : i === 1 ? ' top2' : i === 2 ? ' top3' : '');
+        const medal = ['🥇','🥈','🥉',' ',' ',' ',' ',' ',' ',' '][i];
+        div.innerHTML = `<span class="rank">${medal}#${i+1}</span><span class="name">${escapeHtml(row.pseudo)}</span><span class="pts">${String(row.pts).padStart(5,'0')} pts</span>`;
+        listEl.appendChild(div);
+    });
+}
+
+function escapeHtml(text) {
+    if (!text) return "";
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+async function submitScore(finalScore, finalRound) {
+    const statusEl = document.getElementById('score-submit-status');
+
+    // Sauvegarde en local par sécurité
+    saveLocalScore(globalPseudo, finalScore, finalRound);
+
+    if (statusEl) statusEl.textContent = '✅ SCORE SAUVEGARDÉ (LOCAL)';
+    displayLocalScores();
+
+    if (!useSupabase || !supabaseClient) {
+        console.warn("Supabase n'est pas initialisé, annulation de l'envoi réseau.");
+        return;
+    }
+
+    if (statusEl) statusEl.textContent = 'ENVOI EN COURS...';
+    
+    try {
+        console.log(`Tentative d'envoi vers Supabase : Pseudo=${globalPseudo}, Score=${finalScore}, Round=${finalRound}`);
+        
+        const { data, error } = await supabaseClient
+            .from('highscores')
+            .insert([{ pseudo: globalPseudo, score: finalScore, round: finalRound }])
+            .select();
+
+        // Gestion du blocage Supabase RLS
+        if (error) {
+            console.error("Erreur d'insertion Supabase (Vérifie tes policies RLS):", error);
+            if (statusEl) statusEl.textContent = '⚠️ SCORE LOCAL SAUVEGARDÉ (BLOCAGE SERVEUR)';
+            return;
+        }
+
+        console.log("Succès de l'envoi :", data);
+        if (statusEl) statusEl.textContent = '✅ SCORE ENVOYÉ !';
+        
+        // Rafraîchir la liste des scores pour voir le nouveau
+        fetchHighScores();
+    } catch(e) {
+        console.error("Exception lors de l'envoi :", e);
+        if (statusEl) statusEl.textContent = '⚠️ SAUVEGARDE LOCALE UNIQUEMENT';
+    }
+}
+</script>
+
+<script>
+// --- CONFIGURATION TOUCHES & SOURIS ---
+let keysConfig = {
+    keyUp: 'z', keyDown: 's', keyLeft: 'q', keyRight: 'd',
+    keyShootLaser: ' ', keyShootMissile: 'Mouse0', keyShield: 'Mouse2'
+};
+let currentAssigningKey = null;
+
+function getDisplayKeyName(key) {
+    if (key === ' ') return 'SPACE';
+    if (key.toLowerCase() === 'mouse0') return 'CLIC GAUCHE';
+    if (key.toLowerCase() === 'mouse1') return 'CLIC MOLETTE';
+    if (key.toLowerCase() === 'mouse2') return 'CLIC DROIT';
+    return key.toUpperCase();
+}
+
+function assignKey(action) {
+    currentAssigningKey = action;
+    const btn = event.target;
+    btn.innerText = "PRESSE TOUCHE/CLIC";
+    btn.style.background = "#8000ff";
+    btn.style.color = "#fff";
+}
+
+function updateAssignUI(pressed) {
+    const btns = document.querySelectorAll('.key-btn');
+    let indexMap = { 'keyUp':0, 'keyDown':1, 'keyLeft':2, 'keyRight':3, 'keyShootLaser':4, 'keyShootMissile':5, 'keyShield':6 };
+    const currentBtn = btns[indexMap[currentAssigningKey]];
+    currentBtn.innerText = getDisplayKeyName(pressed);
+    currentBtn.style.background = "#330066";
+    currentBtn.style.color = "#ffea00";
+    currentAssigningKey = null;
+}
+
+window.addEventListener('keydown', (e) => {
+    if (currentAssigningKey) {
+        e.preventDefault();
+        let pressed = e.key === " " ? " " : e.key;
+        keysConfig[currentAssigningKey] = pressed;
+        updateAssignUI(pressed);
+    } else if (gameActive && !isDying) {
+        if(e.key === ' ' || e.key === keysConfig.keyShootLaser) e.preventDefault();
+        keysPressed[e.key.toLowerCase()] = true;
+        if(e.key.toLowerCase() === 'p' || e.key === 'Escape') togglePause();
+    }
+});
+window.addEventListener('keyup', (e) => { if(gameActive && !isDying) keysPressed[e.key.toLowerCase()] = false; });
+
+window.addEventListener('mousedown', (e) => {
+    if (currentAssigningKey) {
+        e.preventDefault();
+        let pressed = 'Mouse' + e.button;
+        keysConfig[currentAssigningKey] = pressed;
+        updateAssignUI(pressed);
+    } else if (gameActive && !isDying && e.target.tagName !== 'BUTTON' && e.target.tagName !== 'INPUT') {
+        keysPressed['mouse' + e.button] = true;
+    }
+});
+window.addEventListener('mouseup', (e) => {
+    if (gameActive && !isDying) keysPressed['mouse' + e.button] = false;
+});
+window.addEventListener('contextmenu', e => { e.preventDefault(); });
+
+// --- MOTEUR AUDIO 8-BIT & AMBIANCE ---
+let audioCtx = null;
+let sfxVolume = 0.5, musicVolume = 0.3;
+let musicOsc1, musicOsc2, musicGain;
+class RetroAudio {
+    init() {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+    }
+    
+    playLaser() {
+        if (!audioCtx) return;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(110, audioCtx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.3 * sfxVolume, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+        osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+    }
+
+    playExplosion() {
+        if (!audioCtx) return;
+        const bufferSize = audioCtx.sampleRate * 0.3;
+        const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+
+        const noise = audioCtx.createBufferSource();
+        noise.buffer = buffer;
+        const filter = audioCtx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(800, audioCtx.currentTime);
+        filter.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.3);
+
+        const gain = audioCtx.createGain();
+        gain.gain.setValueAtTime(0.7 * sfxVolume, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+
+        noise.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination);
+        noise.start(); noise.stop(audioCtx.currentTime + 0.3);
+    }
+
+    playHit() {
+        if (!audioCtx) return;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+        osc.frequency.linearRampToValueAtTime(40, audioCtx.currentTime + 0.2);
+        gain.gain.setValueAtTime(0.6 * sfxVolume, audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+        osc.start(); osc.stop(audioCtx.currentTime + 0.2);
+    }
+
+    playLock() {
+        if (!audioCtx) return;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(1200, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.15 * sfxVolume, audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.05);
+        osc.start(); osc.stop(audioCtx.currentTime + 0.05);
+    }
+
+    startAmbientMusic() {
+        if (!audioCtx || musicGain) return;
+        musicGain = audioCtx.createGain();
+        musicGain.connect(audioCtx.destination);
+        musicGain.gain.value = musicVolume * 0.5;
+
+        musicOsc1 = audioCtx.createOscillator();
+        musicOsc2 = audioCtx.createOscillator();
+        musicOsc1.type = 'sine';
+        musicOsc2.type = 'triangle';
+        musicOsc1.frequency.value = 65.41;
+        musicOsc2.frequency.value = 98.00;
+
+        const filter = audioCtx.createBiquadFilter();
+        filter.type = 'lowpass'; filter.frequency.value = 400;
+        
+        musicOsc1.connect(filter);
+        musicOsc2.connect(filter);
+        filter.connect(musicGain);
+        
+        musicOsc1.start(); musicOsc2.start();
+    }
+
+    updateVolumes() {
+        if (musicGain) musicGain.gain.value = musicVolume * 0.5;
+    }
+}
+const sfx = new RetroAudio();
+
+document.getElementById('vol-sfx').addEventListener('input', (e) => { sfxVolume = parseFloat(e.target.value); });
+document.getElementById('vol-music').addEventListener('input', (e) => { musicVolume = parseFloat(e.target.value); sfx.updateVolumes(); });
+
+// --- VARIABLES DU MOTEUR ---
+let scene, camera, renderer;
+let gameActive = false, isPaused = false;
+let isDying = false, deathTimer = 0;
+// Lecture robuste du meilleur score au lancement de la page
+let bestScore = parseInt(localStorage.getItem('starditwan_best')) || 0;
+let score = 0;
+let round = 1, playerHp = 10.0;
+
+let shieldActive = false, shieldOnCooldown = false;
+let shieldDuration = 5000, shieldCooldownDuration = 10000;
+let shieldStartTime = 0, shieldCooldownStartTime = 0, shieldVisualMesh = null;
+let laserHeat = 0, laserOverheated = false;
+let missileReady = true, lastMissileTime = 0, missileCooldown = 3000;
+let stars, meteors = [], aliens = [], lasers = [], alienProjectiles = [], playerMissiles = [], particles = [];
+let keysPressed = {};
+let playerAim = { x: 0, y: 0 };
+let lockedTarget = null, lastLockPlayTime = 0;
+let bossActive = false, bossHp = 200, maxBossHp = 200;
+let bossShieldHp = 150, maxBossShieldHp = 150, bossShieldMesh = null;
+let bossSpawnedThisRound = false;
+let lastAlienSpawnTime = 0;
+
+// --- INITIALISATION SCÈNE ---
+function init() {
+    if (scene) return;
+    scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x000000, 0.003);
+    camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 0, 0);
+    renderer = new THREE.WebGLRenderer({ antialias: false });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    
+    const oldCanvas = document.querySelector('canvas');
+    if (oldCanvas) oldCanvas.remove();
+    document.body.appendChild(renderer.domElement);
+
+    const starCount = 350;
+    const starGeo = new THREE.BufferGeometry();
+    const starPositions = new Float32Array(starCount * 3);
+    const starColors = new Float32Array(starCount * 3);
+    for (let i = 0; i < starCount * 3; i += 3) {
+        starPositions[i] = (Math.random() - 0.5) * 400;
+        starPositions[i+1] = (Math.random() - 0.5) * 300;
+        starPositions[i+2] = -Math.random() * 600;
+        const rand = Math.random();
+        if (rand > 0.8) { starColors[i]=0.5; starColors[i+1]=0.0; starColors[i+2]=1.0; }
+        else if (rand > 0.6) { starColors[i]=1.0; starColors[i+1]=0.9; starColors[i+2]=0.0; }
+        else { starColors[i]=1.0; starColors[i+1]=1.0; starColors[i+2]=1.0; }
+    }
+    starGeo.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+    starGeo.setAttribute('color', new THREE.BufferAttribute(starColors, 3));
+    stars = new THREE.Points(starGeo, new THREE.PointsMaterial({ size: 1.8, vertexColors: true }));
+    scene.add(stars);
+
+    const shieldGeo = new THREE.RingGeometry(1, 10, 32);
+    const shieldMat = new THREE.MeshBasicMaterial({ color: 0x8000ff, side: THREE.DoubleSide, transparent: true, opacity: 0.45, blending: THREE.AdditiveBlending, wireframe: true });
+    shieldVisualMesh = new THREE.Mesh(shieldGeo, shieldMat);
+    shieldVisualMesh.position.set(0, 0, -8);
+    shieldVisualMesh.visible = false;
+    scene.add(shieldVisualMesh);
+
+    window.addEventListener('resize', () => { camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
+}
+
+// --- LOGIQUE METIER & CORRECTIONS ---
+function resetGame() {
+    score = 0; round = 1;
+    playerHp = 10.0; bossActive = false; bossSpawnedThisRound = false;
+    bossShieldHp = 0;
+    bossShieldMesh = null; 
+    isDying = false;
+    
+    document.getElementById('score-val').innerText = "0000";
+    document.getElementById('round-val').innerText = round;
+    document.getElementById('best-val').innerText = String(bestScore).padStart(4, '0');
+    document.getElementById('round-goal-txt').innerText = `OBJECTIF : ${round * 1000} PTS`;
+    
+    [meteors, aliens, lasers, alienProjectiles, playerMissiles].forEach(arr => {
+        arr.forEach(obj => scene.remove(obj)); arr.length = 0; 
+    });
+    camera.rotation.set(0,0,0); camera.position.set(0,0,0);
+    playerAim = { x: 0, y: 0 };
+    keysPressed = {};
+    
+    shieldActive = false; shieldOnCooldown = false;
+    document.getElementById('shield-bar-fill').style.width = '100%';
+    document.getElementById('shield-status-txt').innerText = "BOUCLIER PRÊT";
+    document.getElementById('shield-bar-fill').classList.remove('cooldown');
+    if(shieldVisualMesh) shieldVisualMesh.visible = false;
+
+    laserHeat = 0; laserOverheated = false;
+    missileReady = true; lastAlienSpawnTime = Date.now();
+
+    updateHeartsHUD();
+    document.getElementById('boss-ui').style.display = 'none';
+    document.body.style.border = "none";
+    document.getElementById('wing-l').style.borderColor = "#8000ff";
+    document.getElementById('wing-r').style.borderColor = "#8000ff";
+    
+    gameActive = true; isPaused = false;
+    triggerRadioTransmission("COMMANDANT : SYSTÈMES EN LIGNE. DÉFENDEZ LE SECTEUR !");
+    update();
+}
+
+function updateHeartsHUD() {
+    const box = document.getElementById('hearts-box');
+    box.innerHTML = '';
+    for (let i = 1; i <= 10; i++) {
+        if (playerHp >= i) box.innerHTML += '<span class="heart">❤️</span>';
+        else if (playerHp >= i - 0.5) box.innerHTML += '<span class="heart" style="opacity:0.65;">💔</span>';
+        else box.innerHTML += '<span class="heart empty">🖤</span>';
+    }
+}
+
+function damagePlayer(amt, bypassShield = false) {
+    if (!gameActive || isDying) return;
+    if (shieldActive && !bypassShield) return; 
+    
+    playerHp -= amt;
+    sfx.playHit();
+    updateHeartsHUD();
+    
+    document.getElementById('wing-l').style.borderColor = '#ff0033';
+    document.getElementById('wing-r').style.borderColor = '#ff0033';
+    setTimeout(() => {
+        if(!isDying){
+            document.getElementById('wing-l').style.borderColor = '#8000ff';
+            document.getElementById('wing-r').style.borderColor = '#8000ff';
+        }
+    }, 200);
+    
+    if (playerHp <= 0) startDeathSequence();
+}
+
+function startDeathSequence() {
+    isDying = true;
+    deathTimer = Date.now();
+    sfx.playExplosion();
+
+    ['hud-top','crosshair-container','target-reticle','pitch-ladder','cockpit-frame','wing-l','wing-r','boss-ui'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+    });
+}
+
+function finishDeathSequence() {
+    isDying = false;
+    gameActive = false;
+
+    // 4. LE PROBLÈME DU HIGHSCORE À 0000 : On met à jour la variable globale et la mémoire locale IMMÉDIATEMENT
+    if (score > bestScore) {
+        bestScore = score;
+        try { localStorage.setItem('starditwan_best', bestScore); } catch(e){}
+    }
+
+    const gameOverContainer = document.getElementById('gameover-container');
+    if (gameOverContainer) {
+        gameOverContainer.style.display = 'flex';
+        
+        const scoreDisplay = document.getElementById('final-score');
+        if (scoreDisplay) scoreDisplay.innerText = String(score).padStart(4, '0');
+        
+        const roundDisplay = document.getElementById('final-round');
+        if (roundDisplay) roundDisplay.innerText = round;
+        
+        // 3. LA MISE À JOUR DE L'AFFICHAGE DU PSEUDO AU GAME OVER (Lecture de la globale)
+        const pseudoDisplay = document.getElementById('final-pseudo');
+        if (pseudoDisplay) pseudoDisplay.innerText = globalPseudo;
+
+        // Affichage correct du meilleur score mis à jour
+        const bestDisplay = document.getElementById('gameover-best');
+        if (bestDisplay) bestDisplay.innerText = String(bestScore).padStart(4, '0');
+    }
+
+    submitScore(score, round);
+}
+
+function createExplosion(pos, colorHex, scale = 1.0, count = 15) {
+    sfx.playExplosion();
+    const particlesGeo = new THREE.BufferGeometry();
+    const positions = [], velocities = [];
+    for (let i = 0; i < count; i++) {
+        positions.push(pos.x, pos.y, pos.z);
+        velocities.push((Math.random()-0.5)*12*scale, (Math.random()-0.5)*12*scale, (Math.random()-0.5)*12*scale);
+    }
+    particlesGeo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    const mat = new THREE.PointsMaterial({ color: colorHex, size: 2.0*scale, transparent: true, opacity: 1.0, blending: THREE.AdditiveBlending });
+    const pSys = new THREE.Points(particlesGeo, mat);
+    scene.add(pSys);
+
+    const anim = () => {
+        if(!gameActive && playerHp>0) return;
+        const posArr = pSys.geometry.attributes.position.array;
+        for (let i=0; i<posArr.length; i+=3) {
+            posArr[i] += velocities[i/3]*0.15;
+            posArr[i+1] += velocities[(i/3)+1]*0.15; posArr[i+2] += velocities[(i/3)+2]*0.15;
+        }
+        pSys.geometry.attributes.position.needsUpdate = true;
+        mat.opacity -= 0.04;
+        if (mat.opacity > 0) requestAnimationFrame(anim);
+        else scene.remove(pSys);
+    };
+    anim();
+}
+
+function showHitText() {
+    const hitTxt = document.getElementById('hit-alert');
+    hitTxt.style.display = 'block';
+    clearTimeout(hitTxt.timeout);
+    hitTxt.timeout = setTimeout(() => { hitTxt.style.display = 'none'; }, 1000);
+}
+
+function getSpeedMultiplier() {
+    let tier = Math.floor((round - 1) / 5);
+    return 1 + (tier * 0.5);
+}
+
+function spawnMeteors(qty) {
+    let speedMult = getSpeedMultiplier();
+    for (let i = 0; i < qty; i++) {
+        const m = new THREE.Mesh(new THREE.DodecahedronGeometry(3 + Math.random()*5, 0), new THREE.MeshBasicMaterial({ color: 0x5c4033, wireframe: true }));
+        m.position.set((Math.random()-0.5)*120, (Math.random()-0.5)*80, -350 - (Math.random()*150));
+        m.userData = { speed: (0.3 + Math.random()*0.3) * speedMult, rotSpeed: { x: (Math.random()-0.5)*0.02, y: (Math.random()-0.5)*0.02 } };
+        scene.add(m); meteors.push(m);
+    }
+}
+
+function spawnAlien(type) {
+    let speedMult = getSpeedMultiplier();
+    let group = new THREE.Group();
+
+    if (type === 1) { 
+        let hp = 25; let speed = 0.3 * speedMult; let scoreVal = 100;
+        const mat1 = new THREE.MeshBasicMaterial({ color: 0x00ffaa, wireframe: true }); 
+        const mat2 = new THREE.MeshBasicMaterial({ color: 0x008866, wireframe: true }); 
+        const matGlow = new THREE.MeshBasicMaterial({ color: 0x00ffff, wireframe: true }); 
+        
+        let cockpit = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.8, 3), mat1);
+        cockpit.rotation.x = 0.2; group.add(cockpit);
+        
+        let nose = new THREE.Mesh(new THREE.ConeGeometry(0.5, 2, 4), mat1);
+        nose.rotation.x = -Math.PI/2; nose.position.set(0, 0.2, -2.5); group.add(nose);
+        
+        let arm1 = new THREE.Mesh(new THREE.BoxGeometry(6, 0.3, 1.5), mat2);
+        arm1.position.set(0, 0, 0); arm1.rotation.z = Math.PI/4; group.add(arm1);
+        
+        let arm2 = new THREE.Mesh(new THREE.BoxGeometry(6, 0.3, 1.5), mat2);
+        arm2.position.set(0, 0, 0); arm2.rotation.z = -Math.PI/4; group.add(arm2);
+        
+        let thrusterFL = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.4, 1.5, 6), matGlow);
+        thrusterFL.position.set(2.5, 0.6, 0.5); group.add(thrusterFL);
+        
+        let thrusterFR = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.4, 1.5, 6), matGlow);
+        thrusterFR.position.set(-2.5, 0.6, 0.5); group.add(thrusterFR);
+        
+        let thrusterBL = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.4, 1.5, 6), matGlow);
+        thrusterBL.position.set(2.5, -0.6, 0.5); group.add(thrusterBL);
+        
+        let thrusterBR = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.4, 1.5, 6), matGlow);
+        thrusterBR.position.set(-2.5, -0.6, 0.5); group.add(thrusterBR);
+        
+        let gunL = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 1.5), mat1);
+        gunL.position.set(3, 0, -0.3); group.add(gunL);
+        
+        let gunR = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 1.5), mat1);
+        gunR.position.set(-3, 0, -0.3); group.add(gunR);
+        
+        group.userData = { type: type, hp: hp, speed: speed, scoreVal: scoreVal, lastShotTime: 0 };
+    }
+    else if(type === 2) { 
+        let hp = 50; let speed = 0.2 * speedMult; let scoreVal = 250;
+        const matBody = new THREE.MeshBasicMaterial({ color: 0xff2200, wireframe: true });
+        const matWing = new THREE.MeshBasicMaterial({ color: 0xaa0000, wireframe: true });
+        const matAccent = new THREE.MeshBasicMaterial({ color: 0xff6600, wireframe: true });
+        
+        let body = new THREE.Mesh(new THREE.BoxGeometry(2, 1, 7), matBody);
+        body.rotation.x = Math.PI/2; group.add(body);
+        
+        let prow = new THREE.Mesh(new THREE.ConeGeometry(0.8, 3, 4), matBody);
+        prow.rotation.x = -Math.PI/2; prow.position.set(0, 0, -5); group.add(prow);
+        
+        let wingL = new THREE.Mesh(new THREE.BoxGeometry(10, 0.3, 5), matWing);
+        wingL.rotation.z = 0.3; wingL.position.set(4, 0, 1); group.add(wingL);
+        
+        let wingR = new THREE.Mesh(new THREE.BoxGeometry(10, 0.3, 5), matWing);
+        wingR.rotation.z = -0.3; wingR.position.set(-4, 0, 1); group.add(wingR);
+        
+        let stabL = new THREE.Mesh(new THREE.BoxGeometry(3, 0.5, 2), matBody);
+        stabL.rotation.z = 0.5; stabL.position.set(1.5, 0, 3); group.add(stabL);
+        
+        let stabR = new THREE.Mesh(new THREE.BoxGeometry(3, 0.5, 2), matBody);
+        stabR.rotation.z = -0.5; stabR.position.set(-1.5, 0, 3); group.add(stabR);
+        
+        let engineC = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.8, 2.5, 8), matAccent);
+        engineC.rotation.x = Math.PI/2; engineC.position.set(0, 0, 3.5); group.add(engineC);
+        
+        let engineL = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.6, 2, 6), matAccent);
+        engineL.rotation.x = Math.PI/2; engineL.position.set(3, 0, 3); group.add(engineL);
+        
+        let engineR = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.6, 2, 6), matAccent);
+        engineR.rotation.x = Math.PI/2; engineR.position.set(-3, 0, 3); group.add(engineR);
+        
+        let weaponL = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 3), matAccent);
+        weaponL.position.set(5, -0.5, 0); group.add(weaponL);
+        
+        let weaponR = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 3), matAccent);
+        weaponR.position.set(-5, -0.5, 0); group.add(weaponR);
+        
+        group.userData = { type: type, hp: hp, speed: speed, scoreVal: scoreVal, lastShotTime: 0 };
+    }
+    else { 
+        bossActive = true;
+        maxBossHp = 200; bossHp = 200; maxBossShieldHp = 150; bossShieldHp = 150;
+        
+        const matHull = new THREE.MeshBasicMaterial({ color: 0x884422, wireframe: true });
+        const matDark = new THREE.MeshBasicMaterial({ color: 0x553311, wireframe: true });
+        const matSpire = new THREE.MeshBasicMaterial({ color: 0xaa6633, wireframe: true });
+        const matGlow = new THREE.MeshBasicMaterial({ color: 0xffaa00, wireframe: true });
+        
+        let hull = new THREE.Mesh(new THREE.CylinderGeometry(6, 8, 30, 8), matHull);
+        hull.rotation.x = Math.PI/2; group.add(hull);
+        
+        let command = new THREE.Mesh(new THREE.SphereGeometry(5, 8, 6, 0, Math.PI*2, 0, Math.PI/2), matHull);
+        command.position.set(0, 2, -14); command.rotation.x = Math.PI; group.add(command);
+        
+        let engineBlock = new THREE.Mesh(new THREE.BoxGeometry(14, 8, 6), matDark);
+        engineBlock.position.set(0, 0, 16); group.add(engineBlock);
+        
+        let spire1 = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 1.5, 18, 6), matSpire);
+        spire1.position.set(4, 8, -5); spire1.rotation.x = 0.2; spire1.rotation.z = 0.15; group.add(spire1);
+        
+        let spire2 = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 1.5, 18, 6), matSpire);
+        spire2.position.set(-4, 8, -5); spire2.rotation.x = 0.2; spire2.rotation.z = -0.15; group.add(spire2);
+        
+        let spire3 = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 1, 12, 5), matSpire);
+        spire3.position.set(0, 10, -8); group.add(spire3);
+        
+        let antenna = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 8, 4), matSpire);
+        antenna.position.set(0, 14, -10); group.add(antenna);
+        
+        let antennaBall = new THREE.Mesh(new THREE.SphereGeometry(1, 6, 4), matGlow);
+        antennaBall.position.set(0, 18, -10); group.add(antennaBall);
+        
+        let cargoL = new THREE.Mesh(new THREE.BoxGeometry(8, 10, 18), matDark);
+        cargoL.position.set(10, -2, 0); group.add(cargoL);
+        
+        let cargoR = new THREE.Mesh(new THREE.BoxGeometry(8, 10, 18), matDark);
+        cargoR.position.set(-10, -2, 0); group.add(cargoR);
+        
+        let wingL = new THREE.Mesh(new THREE.BoxGeometry(20, 2, 8), matHull);
+        wingL.position.set(12, -4, 5); wingL.rotation.z = -0.2; group.add(wingL);
+        
+        let wingR = new THREE.Mesh(new THREE.BoxGeometry(20, 2, 8), matHull);
+        wingR.position.set(-12, -4, 5); wingR.rotation.z = 0.2; group.add(wingR);
+        
+        let engineMain1 = new THREE.Mesh(new THREE.CylinderGeometry(2.5, 3, 5, 8), matGlow);
+        engineMain1.rotation.x = Math.PI/2; engineMain1.position.set(5, -2, 20); group.add(engineMain1);
+        
+        let engineMain2 = new THREE.Mesh(new THREE.CylinderGeometry(2.5, 3, 5, 8), matGlow);
+        engineMain2.rotation.x = Math.PI/2; engineMain2.position.set(-5, -2, 20); group.add(engineMain2);
+        
+        let engineMain3 = new THREE.Mesh(new THREE.CylinderGeometry(2, 2.5, 4, 8), matGlow);
+        engineMain3.rotation.x = Math.PI/2; engineMain3.position.set(0, 2, 20); group.add(engineMain3);
+        
+        let turret1 = new THREE.Mesh(new THREE.BoxGeometry(2, 1.5, 2), matDark);
+        turret1.position.set(7, 3, -8); group.add(turret1);
+        
+        let turret2 = new THREE.Mesh(new THREE.BoxGeometry(2, 1.5, 2), matDark);
+        turret2.position.set(-7, 3, -8); group.add(turret2);
+        
+        let turret3 = new THREE.Mesh(new THREE.BoxGeometry(2, 1.5, 2), matDark);
+        turret3.position.set(0, 5, -12); group.add(turret3);
+        
+        let glow1 = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), matGlow);
+        glow1.position.set(10, 0, -5); group.add(glow1);
+        
+        let glow2 = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), matGlow);
+        glow2.position.set(-10, 0, -5); group.add(glow2);
+        
+        let glow3 = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), matGlow);
+        glow3.position.set(10, -5, 3); group.add(glow3);
+        
+        let glow4 = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), matGlow);
+        glow4.position.set(-10, -5, 3); group.add(glow4);
+        
+        group.position.set(0, 10, -280);
+        group.userData = { type: 3, hp: 200, shieldHp: 150, maxHp: 200, speed: 0.08 * speedMult, scoreVal: 500, lastShotTime: 0 };
+        bossShieldHp = 150;
+        
+        const shieldGeo = new THREE.SphereGeometry(22, 32, 32);
+        const shieldMat = new THREE.MeshBasicMaterial({
+            color: 0x0088ff,
+            transparent: true,
+            opacity: 0.25,
+            side: THREE.DoubleSide,
+            wireframe: true
+        });
+        bossShieldMesh = new THREE.Mesh(shieldGeo, shieldMat);
+        
+        group.add(bossShieldMesh);
+        scene.add(group); aliens.push(group);
+
+        document.getElementById('boss-title') ? document.getElementById('boss-title').innerText = `BANU MERCHANTMAN (ROUND ${round})` : null;
+        document.getElementById('boss-bar-fill').style.width = '100%';
+        document.getElementById('boss-shield-bar-fill').style.width = '100%';
+        document.getElementById('boss-shield-text').innerText = bossShieldHp;
+        document.getElementById('boss-hp-text').innerText = bossHp;
+        document.getElementById('boss-ui').style.display = 'block';
+        return; 
+    }
+    
+    group.position.set((Math.random()-0.5)*40, (Math.random()-0.5)*30, -300);
+    scene.add(group); aliens.push(group);
+}
+
+function manageEnemySpawning() {
+    const time = Date.now();
+    let speedMult = getSpeedMultiplier();
+    
+    if (meteors.length < 5) spawnMeteors(5 - meteors.length);
+
+    if (round % 5 === 0 && !bossActive && aliens.length === 0 && !bossSpawnedThisRound) {
+        spawnAlien(3);
+        bossSpawnedThisRound = true;
+    }
+    else if (!bossActive && aliens.length < 4) {
+        if (time - lastAlienSpawnTime > Math.max(1500, 4500 / speedMult)) {
+            spawnAlien(Math.random() > 0.7 ? 2 : 1);
+            lastAlienSpawnTime = time;
+        }
+    }
+
+    let tier = Math.floor((round - 1) / 5);
+    const shotInterval = Math.max(4000, 10000 - (tier * 1000));
+    aliens.forEach(alien => {
+        if (time - alien.userData.lastShotTime > shotInterval && alien.position.z < -20) {
+            alien.userData.lastShotTime = time;
+            const proj = new THREE.Mesh(new THREE.SphereGeometry(0.8, 8, 8), new THREE.MeshBasicMaterial({ color: 0x00ff66 }));
+            proj.position.copy(alien.position);
+            const dir = new THREE.Vector3().subVectors(new THREE.Vector3(0,-2,0), proj.position).normalize();
+            proj.userData = { dir: dir, speed: 0.5 * speedMult };
+            scene.add(proj); alienProjectiles.push(proj);
+            sfx.playLaser();
+        }
+    });
+}
+
+function update() {
+    if (!gameActive || isPaused) return;
+    const time = Date.now();
+
+    if (isDying) {
+        const elapsed = time - deathTimer;
+        
+        camera.rotation.z += 0.03;
+        camera.rotation.x -= 0.01;
+        camera.position.y -= 0.06;
+
+        if (Math.random() > 0.2) {
+            createExplosion(new THREE.Vector3((Math.random()-0.5)*8, camera.position.y - 1 + (Math.random()-0.5)*3, camera.position.z - 10), 0xff3300, 1.8, 2);
+            createExplosion(new THREE.Vector3((Math.random()-0.5)*8, camera.position.y - 1 + (Math.random()-0.5)*3, camera.position.z - 10), 0xffaa00, 1.5, 2);
+        }
+
+        if (elapsed > 2500) {
+            finishDeathSequence();
+            return;
+        }
+
+    } else {
+        if (shieldActive) {
+            const elapsed = time - shieldStartTime;
+            document.getElementById('shield-bar-fill').style.width = Math.max(0, ((shieldDuration - elapsed)/shieldDuration)*100) + '%';
+            if(shieldVisualMesh) shieldVisualMesh.rotation.z += 0.03;
+            if (elapsed >= shieldDuration) {
+                shieldActive = false;
+                shieldOnCooldown = true; shieldCooldownStartTime = time;
+                if(shieldVisualMesh) shieldVisualMesh.visible = false;
+                document.getElementById('shield-status-txt').innerText = "RÉGÉNÉRATION";
+                document.getElementById('shield-status-txt').style.color = '#ffaa00';
+                document.getElementById('shield-bar-fill').classList.add('cooldown');
+            }
+        } else if (shieldOnCooldown) {
+            const elapsed = time - shieldCooldownStartTime;
+            document.getElementById('shield-bar-fill').style.width = Math.min(100, (elapsed/shieldCooldownDuration)*100) + '%';
+            if (elapsed >= shieldCooldownDuration) {
+                shieldOnCooldown = false;
+                document.getElementById('shield-status-txt').innerText = "BOUCLIER PRÊT";
+                document.getElementById('shield-status-txt').style.color = '#00ff66';
+                document.getElementById('shield-bar-fill').classList.remove('cooldown');
+            }
+        }
+
+        if (keysPressed[keysConfig.keyShield.toLowerCase()] && !shieldActive && !shieldOnCooldown) {
+            shieldActive = true;
+            shieldStartTime = time;
+            if(shieldVisualMesh){ shieldVisualMesh.visible = true; shieldVisualMesh.scale.set(1,1,1); }
+            document.getElementById('shield-status-txt').innerText = "BOUCLIER ACTIF !";
+            document.getElementById('shield-status-txt').style.color = '#8000ff';
+        }
+
+        let moveX=0, moveY=0;
+        if (keysPressed[keysConfig.keyUp.toLowerCase()]) moveY=1;
+        if (keysPressed[keysConfig.keyDown.toLowerCase()]) moveY=-1;
+        if (keysPressed[keysConfig.keyLeft.toLowerCase()]) moveX=-1;
+        if (keysPressed[keysConfig.keyRight.toLowerCase()]) moveX=1;
+        
+        playerAim.x = THREE.MathUtils.lerp(playerAim.x, moveX*40, 0.02);
+        playerAim.y = THREE.MathUtils.lerp(playerAim.y, moveY*30, 0.02);
+        camera.rotation.y = -playerAim.x*0.012; camera.rotation.x = playerAim.y*0.012; camera.rotation.z = -playerAim.x*0.008;
+        document.getElementById('pitch-ladder').style.transform = `translate(${-playerAim.x*0.8}px, ${playerAim.y*0.8}px) rotate(${-playerAim.x*0.4}deg)`;
+
+        if (keysPressed[keysConfig.keyShootLaser.toLowerCase()]) {
+            if (!laserOverheated) {
+                laserHeat += 1.8;
+                sfx.playLaser();
+                const l = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 5, 4), new THREE.MeshBasicMaterial({ color: 0xffea00 }));
+                l.rotation.x = Math.PI/2;
+                l.position.set((lasers.length%2===0)?-3.5:3.5, -2, -4);
+                const dir = new THREE.Vector3().subVectors(
+                    new THREE.Vector3(playerAim.x * 2.5, playerAim.y * 2.5, -300), 
+                    l.position
+                ).normalize();
+                l.userData = { dir: dir, speed: 6.0 };
+                scene.add(l); lasers.push(l);
+
+                if (laserHeat>=100) {
+                    laserOverheated=true;
+                    document.getElementById('laser-ammo-txt').innerText="SURCHAUFFE";
+                    document.getElementById('laser-ammo-txt').style.color='#ff3300';
+                    document.getElementById('laser-bar-fill').classList.add('cooldown');
+                }
+            }
+        } else {
+            laserHeat = Math.max(0, laserHeat-1.2);
+            if (laserOverheated && laserHeat===0) {
+                laserOverheated=false; document.getElementById('laser-ammo-txt').innerText="PRÊT";
+                document.getElementById('laser-ammo-txt').style.color='#00ff66';
+                document.getElementById('laser-bar-fill').classList.remove('cooldown');
+            }
+        }
+        document.getElementById('laser-bar-fill').style.width = (100-laserHeat)+'%';
+
+        if (keysPressed[keysConfig.keyShootMissile.toLowerCase()] && missileReady && lockedTarget) {
+            missileReady = false;
+            lastMissileTime = time;
+            const mis = new THREE.Mesh(new THREE.ConeGeometry(0.6, 3, 5), new THREE.MeshBasicMaterial({ color: 0x00ffff }));
+            mis.rotation.x = Math.PI/2;
+            mis.position.set(0, -3, -4);
+            mis.userData = { target: lockedTarget, speed: 3.5 };
+            scene.add(mis); playerMissiles.push(mis);
+            document.getElementById('missile-ammo-txt').innerText="RECHARGE"; document.getElementById('missile-ammo-txt').style.color='#ffaa00';
+            document.getElementById('missile-bar-fill').classList.add('cooldown');
+        }
+        if (!missileReady) {
+            const elapsed = time - lastMissileTime;
+            document.getElementById('missile-bar-fill').style.width = Math.min(100, (elapsed/missileCooldown)*100)+'%';
+            if (elapsed>=missileCooldown) {
+                missileReady=true; document.getElementById('missile-ammo-txt').innerText="100%";
+                document.getElementById('missile-ammo-txt').style.color='#00ffff';
+                document.getElementById('missile-bar-fill').classList.remove('cooldown');
+            }
+        }
+        
+        manageEnemySpawning();
+    } 
+
+    const posArr = stars.geometry.attributes.position.array;
+    for(let i=2; i<posArr.length; i+=3){ posArr[i]+=1.5; if(posArr[i]>10) posArr[i]=-600; }
+    stars.geometry.attributes.position.needsUpdate = true;
+
+    document.getElementById('radar-alert').innerText = "ZONE SÛRE"; document.getElementById('radar-alert').style.color = '#00ff66';
+    
+    for (let i = meteors.length-1; i>=0; i--) {
+        const m = meteors[i];
+        m.position.z += m.userData.speed; m.rotation.x += m.userData.rotSpeed.x; m.rotation.y += m.userData.rotSpeed.y;
+        if (m.position.z > -100 && Math.abs(m.position.x)<20 && Math.abs(m.position.y)<15) { document.getElementById('radar-alert').innerText = "METEORE PROCHE";
+            document.getElementById('radar-alert').style.color = '#ffea00'; }
+        
+        if (m.position.z > -5 && Math.abs(m.position.x)<8 && Math.abs(m.position.y)<6) {
+            if (!isDying) {
+                if (shieldActive) createExplosion(m.position, 0x8000ff, 1.2);
+                else { damagePlayer(2); createExplosion(m.position, 0x5c4033); }
+            }
+            scene.remove(m); meteors.splice(i, 1);
+            continue;
+        }
+        if (m.position.z>5) { scene.remove(m); meteors.splice(i, 1); continue; }
+    }
+
+    let minAbsoluteDist = Infinity;
+    let nearestObj = null;
+
+    for (let i = aliens.length-1; i>=0; i--) {
+        const a = aliens[i];
+        a.position.z += a.userData.speed;
+        
+        if (a.position.z > -5 && Math.abs(a.position.x)<8 && Math.abs(a.position.y)<6) {
+            if (!isDying) {
+                if (shieldActive) createExplosion(a.position, 0x8000ff, 1.5);
+                else { damagePlayer(3); createExplosion(a.position, 0xff0000, 1.5); }
+            }
+            if(a.userData.type===3){ bossActive=false;
+                document.getElementById('boss-ui').style.display='none'; checkRound(); }
+            scene.remove(a); aliens.splice(i, 1); continue;
+        }
+        
+        if (a.position.z > 5) {
+            if (!isDying) {
+                if (a.userData.type === 1) {
+                    damagePlayer(2, true);
+                } else if (a.userData.type === 2) {
+                    damagePlayer(3, true);
+                } else if (a.userData.type === 3) {
+                    damagePlayer(5, true);
+                    bossActive = false;
+                    if (bossShieldMesh) {
+                        a.remove(bossShieldMesh);
+                        bossShieldMesh = null;
+                    }
+                    document.getElementById('boss-ui').style.display = 'none';
+                }
+            }
+            scene.remove(a); aliens.splice(i, 1); continue; 
+        }
+        
+        let d = a.position.distanceTo(camera.position);
+        if (d < minAbsoluteDist && a.position.z < -10) { minAbsoluteDist = d; nearestObj = a; }
+    }
+
+    if (!isDying) {
+        lockedTarget = nearestObj;
+        const reticle = document.getElementById('target-reticle');
+        if (lockedTarget) {
+            document.getElementById('lock-alert').style.display='block';
+            const proj = lockedTarget.position.clone().project(camera);
+            const x = (proj.x * .5 + .5) * window.innerWidth;
+            const y = (proj.y * -.5 + .5) * window.innerHeight;
+            reticle.style.display = 'block';
+            reticle.style.left = `${x}px`; reticle.style.top = `${y}px`;
+            
+            if (time-lastLockPlayTime>800) { sfx.playLock(); lastLockPlayTime=time; }
+        } else { 
+            document.getElementById('lock-alert').style.display='none';
+            reticle.style.display = 'none';
+        }
+    } else {
+        lockedTarget = null;
+    }
+
+    for (let i = lasers.length-1; i>=0; i--) {
+        const l = lasers[i];
+        l.position.addScaledVector(l.userData.dir, l.userData.speed);
+        if (l.position.z<-250) { scene.remove(l); lasers.splice(i, 1); continue; }
+        let hit = false;
+        
+        for (let k = alienProjectiles.length-1; k>=0; k--) {
+            if (l.position.distanceTo(alienProjectiles[k].position) < 4.0) {
+                createExplosion(alienProjectiles[k].position, 0x00ff66, 0.6);
+                scene.remove(alienProjectiles[k]); alienProjectiles.splice(k, 1);
+                scene.remove(l); lasers.splice(i, 1); hit = true; break;
+            }
+        }
+        if(hit) continue;
+        
+        for (let j = aliens.length-1; j>=0; j--) {
+            const a = aliens[j];
+            if (l.position.distanceTo(a.position) < (a.userData.type===3?12:5.0)) {
+                if (a.userData.type === 3 && a.userData.shieldHp > 0) {
+                    a.userData.shieldHp -= 5;
+                    bossShieldHp = a.userData.shieldHp;
+                    document.getElementById('boss-shield-text').innerText = Math.max(0, a.userData.shieldHp);
+                    if (bossShieldMesh) {
+                        bossShieldMesh.material.opacity = 0.25 * Math.max(0, a.userData.shieldHp / maxBossShieldHp);
+                    }
+                    if (bossShieldMesh && a.userData.shieldHp <= 0) {
+                        a.remove(bossShieldMesh); // Utilise le groupe
+                        bossShieldMesh = null;
+                        triggerRadioTransmission('BOUCLIER DETRUIT ! Attaquez la coque !');
+                    }
+                    createExplosion(l.position, 0x0088ff, 0.8);
+                    document.getElementById('boss-shield-bar-fill').style.width = Math.max(0,(a.userData.shieldHp/maxBossShieldHp)*100)+'%';
+                } else {
+                    a.userData.hp -= 5;
+                    if (a.userData.type === 3) {
+                        bossHp = a.userData.hp;
+                        document.getElementById('boss-hp-text').innerText = Math.max(0, a.userData.hp);
+                    }
+                    
+                    if (a.userData.hp<=0) {
+                        let col = a.userData.type===3?0xff0000:(a.userData.type===2?0xffaa00:0xff0055);
+                        createExplosion(a.position, col, a.userData.type===3?3:1.2);
+                        if (!isDying) {
+                            score += a.userData.scoreVal; document.getElementById('score-val').innerText = String(score).padStart(4, '0');
+                            // Mise à jour du meilleur score EN TEMPS RÉEL dans le HUD
+                            if (score > bestScore) document.getElementById('best-val').innerText = String(score).padStart(4, '0');
+                        }
+                        if(a.userData.type===3){ bossActive=false; bossShieldHp=0; if(bossShieldMesh){a.remove(bossShieldMesh); bossShieldMesh=null;} document.getElementById('boss-ui').style.display='none'; }
+                        scene.remove(a);
+                        aliens.splice(j, 1); checkRound();
+                    } else {
+                        createExplosion(l.position, 0xffea00, 0.5);
+                        if (a.userData.type===3) {
+                            document.getElementById('boss-bar-fill').style.width = Math.max(0,(a.userData.hp/a.userData.maxHp)*100)+'%';
+                        }
+                    }
+                }
+                scene.remove(l);
+                lasers.splice(i, 1); hit = true; break;
+            }
+        }
+        if(hit) continue;
+        
+        for (let j = meteors.length-1; j>=0; j--) {
+            if (l.position.distanceTo(meteors[j].position) < 6.0) {
+                createExplosion(meteors[j].position, 0x5c4033, 1.0);
+                scene.remove(meteors[j]); meteors.splice(j, 1);
+                scene.remove(l); lasers.splice(i, 1); break;
+            }
+        }
+    }
+
+    for (let i = playerMissiles.length-1; i>=0; i--) {
+        const m = playerMissiles[i];
+        const t = m.userData.target;
+        if (t && t.parent) {
+            const dir = new THREE.Vector3().subVectors(t.position, m.position).normalize();
+            m.position.addScaledVector(dir, m.userData.speed); m.lookAt(t.position);
+            
+            if (m.position.distanceTo(t.position) < (t.userData.type===3?15:6.0)) {
+                showHitText();
+                
+                if (t.userData.hp !== undefined) {
+                    if (t.userData.type === 3 && t.userData.shieldHp > 0) {
+                        t.userData.shieldHp -= 50;
+                        bossShieldHp = t.userData.shieldHp;
+                        document.getElementById('boss-shield-text').innerText = Math.max(0, t.userData.shieldHp);
+                        if (bossShieldMesh) {
+                            bossShieldMesh.material.opacity = 0.25 * Math.max(0, t.userData.shieldHp / maxBossShieldHp);
+                        }
+                        if (bossShieldMesh && t.userData.shieldHp <= 0) {
+                            t.remove(bossShieldMesh);
+                            bossShieldMesh = null;
+                            triggerRadioTransmission('BOUCLIER DÉTRUIT ! Attaquez la coque !');
+                        }
+                        createExplosion(m.position, 0x0088ff, 2.0);
+                        document.getElementById('boss-shield-bar-fill').style.width = Math.max(0,(t.userData.shieldHp/maxBossShieldHp)*100)+'%';
+                    } else {
+                        t.userData.hp -= 50; 
+                        if(t.userData.type===3) {
+                            bossHp = t.userData.hp;
+                            document.getElementById('boss-hp-text').innerText = Math.max(0, t.userData.hp);
+                        }
+                        
+                        if(t.userData.hp<=0){
+                            createExplosion(t.position, 0x00ffff, 2.5);
+                            if(t.userData.scoreVal && !isDying) { 
+                                score += t.userData.scoreVal; document.getElementById('score-val').innerText = String(score).padStart(4, '0');
+                                // Mise à jour du meilleur score EN TEMPS RÉEL dans le HUD
+                                if (score > bestScore) document.getElementById('best-val').innerText = String(score).padStart(4, '0');
+                            }
+                            if(t.userData.type===3){ bossActive=false; document.getElementById('boss-ui').style.display='none'; }
+                            scene.remove(t);
+                            const aIdx = aliens.indexOf(t); if(aIdx>-1) aliens.splice(aIdx, 1);
+                            checkRound();
+                        } else {
+                            createExplosion(m.position, 0x00ffff, 1.5);
+                            if(t.userData.type===3) document.getElementById('boss-bar-fill').style.width = Math.max(0,(t.userData.hp/t.userData.maxHp)*100)+'%';
+                        }
+                    }
+                } else {
+                    createExplosion(t.position, 0x5c4033, 2.0);
+                    scene.remove(t);
+                    const mIdx = meteors.indexOf(t); if(mIdx>-1) meteors.splice(mIdx, 1);
+                }
+                scene.remove(m);
+                playerMissiles.splice(i, 1);
+            }
+        } else {
+            m.translateZ(m.userData.speed);
+            if (m.position.z < -250) { scene.remove(m); playerMissiles.splice(i, 1); }
+        }
+    }
+
+    for (let i = alienProjectiles.length-1; i>=0; i--) {
+        const ap = alienProjectiles[i];
+        ap.position.addScaledVector(ap.userData.dir, ap.userData.speed);
+        if (ap.position.z > -2.0) {
+            if (!isDying) {
+                if (shieldActive) createExplosion(ap.position, 0x8000ff, 1.0);
+                else { damagePlayer(0.5); createExplosion(ap.position, 0x00ff66, 0.8); }
+            }
+            scene.remove(ap);
+            alienProjectiles.splice(i, 1); continue;
+        }
+        if (Math.abs(ap.position.x) > 150 || Math.abs(ap.position.y) > 100 || ap.position.z > 20) {
+            scene.remove(ap);
+            alienProjectiles.splice(i, 1);
+        }
+    }
+
+    renderer.render(scene, camera);
+    requestAnimationFrame(update);
+}
+
+function checkRound() {
+    if (isDying) return;
+    const ptsReq = round * 1000;
+    if (score >= ptsReq) {
+        round++;
+        bossSpawnedThisRound = false;
+        document.getElementById('round-val').innerText = round;
+        document.getElementById('round-goal-txt').innerText = `OBJECTIF : ${round * 1000} PTS`;
+        aliens.forEach(a => scene.remove(a)); aliens.length=0; bossActive=false;
+        document.getElementById('boss-ui').style.display='none';
+        
+        let msg = `COMMANDANT : SECTEUR SÉCURISÉ. BEAU TRAVAIL ! ENTRÉE DANS LE ROUND ${round}.`;
+        
+        if (round % 5 === 0) {
+            msg = `COMMANDANT : Bien joué pour ces ${round} rounds ! Attention, un énorme vaisseau Boss arrive !`;
+        }
+        
+        triggerRadioTransmission(msg);
+    }
+}
+
+let radioTimeout;
+function triggerRadioTransmission(text) {
+    const box = document.getElementById('radio-transmission'), label = document.getElementById('radio-text');
+    box.style.display = 'block'; label.innerText = ""; clearTimeout(radioTimeout);
+    let index = 0;
+    function typeChar() {
+        if (index < text.length) { label.innerText += text[index]; index++;
+            radioTimeout = setTimeout(typeChar, 30); } 
+        else radioTimeout = setTimeout(() => { box.style.display = 'none'; }, 5000);
+    }
+    typeChar();
+}
+
+function togglePause() {
+    if (!gameActive || isDying) return;
+    isPaused = !isPaused;
+    document.getElementById('pause-container').style.display = isPaused ? 'flex' : 'none';
+    if (!isPaused) requestAnimationFrame(update);
+}
+
+document.getElementById('btn-play').addEventListener('click', () => {
+    try {
+        // 1. Gestion du pseudo
+        const input = document.getElementById('pseudo-input');
+        if (input && input.value.trim() !== "") {
+            savePseudo(input.value.trim().toUpperCase());
+        } else {
+            savePseudo("PILOTE");
+        }
+
+        // 2. Cache le menu principal
+        const menuContainer = document.getElementById('menu-container');
+        if (menuContainer) menuContainer.style.display = 'none';
+
+        // 3. Affiche les éléments du HUD et du cockpit
+        ['hud-top', 'cockpit-frame'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = 'flex';
+        });
+        ['crosshair-container', 'pitch-ladder', 'wing-l', 'wing-r'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = 'block';
+        });
+
+        // 4. Initialisation du moteur Audio (suspendu → resumable)
+        if (typeof audioCtx !== 'undefined' && audioCtx.state === 'suspended') {
+            audioCtx.resume().catch(err => console.error("Audio resume error:", err));
+        }
+
+        // 5. INITIALISATION DU JEU — wrapped so a failure never blocks startup
+        try { init(); } catch(e) { console.error("init() error:", e); }
+        try { resetGame(); } catch(e) { console.error("resetGame() error:", e); }
+
+        console.log("STARWAN V9 — Jeu démarré avec succès !");
+    } catch(e) {
+        console.error("Bouton START — erreur globale:", e);
+        // LAST RESORT : on essaie quand même de lancer le jeu
+        try { init(); } catch(e2) {}
+        try { resetGame(); } catch(e2) {}
+    }
+});
+
+document.getElementById('btn-restart').addEventListener('click', () => {
+    document.getElementById('gameover-container').style.display='none';
+    ['hud-top','cockpit-frame'].forEach(id=>document.getElementById(id).style.display='flex');
+    ['crosshair-container','pitch-ladder','wing-l','wing-r'].forEach(id=>document.getElementById(id).style.display='block');
+    resetGame();
+});
+
+document.getElementById('btn-main-menu').addEventListener('click', () => {
+    document.getElementById('gameover-container').style.display = 'none';
+    document.getElementById('menu-container').style.display = 'flex';
+    if (typeof camera !== 'undefined') {
+        camera.rotation.z = 0;
+        camera.position.set(0, 0, 0); 
+    }
+    fetchHighScores();
+});
+
+document.getElementById('btn-resume').addEventListener('click', togglePause);
+
+document.getElementById('btn-quit').addEventListener('click', () => {
+    isPaused=false; gameActive=false;
+    ['pause-container','hud-top','crosshair-container','target-reticle','pitch-ladder','cockpit-frame','wing-l','wing-r','boss-ui'].forEach(id=>document.getElementById(id).style.display='none');
+    document.getElementById('menu-container').style.display = 'flex';
+    fetchHighScores();
+});
+</script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v833ccba57c9e4d2798f2e76cebdd09a11778172276447" integrity="sha512-57MDmcccJXYtNnH+ZiBwzC4jb2rvgVCEokYN+L/nLlmO8rfYT/gIpW2A569iJ/3b+0UEasghjuZH/ma3wIs/EQ==" data-cf-beacon='{"version":"2024.11.0","token":"8607d2a720d14b038279025b2b5a82e5","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v833ccba57c9e4d2798f2e76cebdd09a11778172276447" integrity="sha512-57MDmcccJXYtNnH+ZiBwzC4jb2rvgVCEokYN+L/nLlmO8rfYT/gIpW2A569iJ/3b+0UEasghjuZH/ma3wIs/EQ==" data-cf-beacon='{"version":"2024.11.0","token":"8607d2a720d14b038279025b2b5a82e5","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+</body>
+</html>
