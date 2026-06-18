@@ -509,6 +509,40 @@
                 <div>SFX VOL: <input type="range" id="vol-sfx" min="0" max="1" step="0.1" value="0.5"></div>
                 <div>MUSIC VOL: <input type="range" id="vol-music" min="0" max="1" step="0.1" value="0.3"></div>
             </div>
+<!-- Bouton de partage -->
+<div style="text-align: center; margin-bottom: 15px;">
+ <!-- Bouton et Script en un seul bloc -->
+<button id="btn-share" onclick="partagerJeu(this)" style="font-family: 'Press Start 2P', monospace; font-size: 10px; color: #ffea00; background: #330066; border: 2px solid #8000ff; padding: 10px 20px; cursor: pointer; transition: 0.3s;">Lien de partage du jeu ici !</button>
+
+<script>
+function partagerJeu(btn) {
+    try {
+        const lien = window.location.href;
+        
+        // Copie le lien dans le presse-papier
+        navigator.clipboard.writeText(lien).then(() => {
+            const texteOriginal = btn.textContent;
+            btn.textContent = "MERCI !";
+            btn.style.borderColor = "#00ff66";
+            btn.style.color = "#00ff66";
+            
+            // Revenir à l'état original après 2 secondes
+            setTimeout(() => {
+                btn.textContent = texteOriginal;
+                btn.style.borderColor = "#8000ff";
+                btn.style.color = "#ffea00";
+            }, 2000);
+        }).catch(err => {
+            console.error("Erreur de copie :", err);
+            btn.textContent = "ERREUR";
+        });
+    } catch(e) {
+        console.error("Erreur fatale bouton :", e);
+    }
+}
+</script>
+
+
 </div>
             <button class="btn blink" id="btn-play">DÉMARRER VOL</button>
         </div>
@@ -901,10 +935,62 @@ async function submitScore(finalScore, finalRound) {
 </script>
 
 <script>
+    
 // --- VARIABLES MOBILE & MANETTE ---
 let isMobile = false; // 📱 Désactivé par défaut au démarrage
 let mobileMoveX = 0, mobileMoveY = 0;
 let isMobileLaser = false, isMobileMissile = false, isMobileShield = false;
+
+// --- DÉTECTION ET SETUP TACTILE ---
+// On configure les contrôles tactiles pour qu'ils soient prêts à l'emploi
+
+    // Joystick tactile
+    const zone = document.getElementById('joystick-zone');
+    const knob = document.getElementById('joystick-knob');
+    let jx = 0, jy = 0;
+
+    if(zone) {
+        zone.addEventListener('touchmove', (e) => {
+            if (!isMobile) return; // Ne fait rien si le mode tactile n'est pas activé
+            e.preventDefault();
+            let rect = zone.getBoundingClientRect();
+            let touch = e.targetTouches[0];
+            let x = touch.clientX - rect.left - rect.width/2;
+            let y = touch.clientY - rect.top - rect.height/2;
+            let maxR = rect.width/2;
+            let dist = Math.sqrt(x*x + y*y);
+            if(dist > maxR) { x = (x/dist)*maxR; y = (y/dist)*maxR; }
+            knob.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`;
+            mobileMoveX = x / maxR;
+            mobileMoveY = -(y / maxR); // Inversé pour correspondre au jeu
+        }, {passive: false});
+
+        zone.addEventListener('touchend', () => {
+            knob.style.transform = `translate(-50%, -50%)`;
+            mobileMoveX = 0; mobileMoveY = 0;
+        });
+    }
+
+    // Boutons tactiles
+    const setupBtn = (id, varName) => {
+        const btn = document.getElementById(id);
+        if(!btn) return;
+        btn.addEventListener('touchstart', (e) => { 
+            if (!isMobile) return;
+            e.preventDefault(); 
+            window[varName] = true; 
+        }, {passive: false});
+        btn.addEventListener('touchend', (e) => { 
+            if (!isMobile) return;
+            e.preventDefault(); 
+            window[varName] = false; 
+        }, {passive: false});
+    };
+    setupBtn('btn-mob-laser', 'isMobileLaser');
+    setupBtn('btn-mob-missile', 'isMobileMissile');
+    setupBtn('btn-mob-shield', 'isMobileShield');
+
+// --- LOGIQUE D'ASSIGNATION (MENU) ---
 
 // ============================================================
 //  MOTEUR AUDIO ÉTENDU — SFX + LOFI SPACE + SLIDERS + PRÉVIEWS
