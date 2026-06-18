@@ -509,19 +509,6 @@
                 <div>SFX VOL: <input type="range" id="vol-sfx" min="0" max="1" step="0.1" value="0.5"></div>
                 <div>MUSIC VOL: <input type="range" id="vol-music" min="0" max="1" step="0.1" value="0.3"></div>
             </div>
-<!-- Bouton d'activation du mode tactile mobile -->
- style="text-align: center; margin-bottom: 15px;">
-     id="btn-toggle-mobile" style="
-        font-family: 'Press Start 2P', monospace;
-        font-size: 10px;
-        color: #ff0055;
-        background: rgba(255, 0, 85, 0.1);
-        border: 2px solid #ff0055;
-        padding: 8px 15px;
-        cursor: pointer;
-        box-shadow: 0 0 5px #ff0055;
-        transition: 0.2s;
-    ">📱 ACTIVER LE MODE TACTILE : NON
 </div>
             <button class="btn blink" id="btn-play">DÉMARRER VOL</button>
         </div>
@@ -918,89 +905,6 @@ async function submitScore(finalScore, finalRound) {
 let isMobile = false; // 📱 Désactivé par défaut au démarrage
 let mobileMoveX = 0, mobileMoveY = 0;
 let isMobileLaser = false, isMobileMissile = false, isMobileShield = false;
-
-// --- DÉTECTION ET SETUP TACTILE ---
-// On configure les contrôles tactiles pour qu'ils soient prêts à l'emploi
-window.addEventListener('DOMContentLoaded', () => {
-    // Joystick tactile
-    const zone = document.getElementById('joystick-zone');
-    const knob = document.getElementById('joystick-knob');
-    let jx = 0, jy = 0;
-
-    if(zone) {
-        zone.addEventListener('touchmove', (e) => {
-            if (!isMobile) return; // Ne fait rien si le mode tactile n'est pas activé
-            e.preventDefault();
-            let rect = zone.getBoundingClientRect();
-            let touch = e.targetTouches[0];
-            let x = touch.clientX - rect.left - rect.width/2;
-            let y = touch.clientY - rect.top - rect.height/2;
-            let maxR = rect.width/2;
-            let dist = Math.sqrt(x*x + y*y);
-            if(dist > maxR) { x = (x/dist)*maxR; y = (y/dist)*maxR; }
-            knob.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`;
-            mobileMoveX = x / maxR;
-            mobileMoveY = -(y / maxR); // Inversé pour correspondre au jeu
-        }, {passive: false});
-
-        zone.addEventListener('touchend', () => {
-            knob.style.transform = `translate(-50%, -50%)`;
-            mobileMoveX = 0; mobileMoveY = 0;
-        });
-    }
-
-    // Boutons tactiles
-    const setupBtn = (id, varName) => {
-        const btn = document.getElementById(id);
-        if(!btn) return;
-        btn.addEventListener('touchstart', (e) => { 
-            if (!isMobile) return;
-            e.preventDefault(); 
-            window[varName] = true; 
-        }, {passive: false});
-        btn.addEventListener('touchend', (e) => { 
-            if (!isMobile) return;
-            e.preventDefault(); 
-            window[varName] = false; 
-        }, {passive: false});
-    };
-    setupBtn('btn-mob-laser', 'isMobileLaser');
-    setupBtn('btn-mob-missile', 'isMobileMissile');
-    setupBtn('btn-mob-shield', 'isMobileShield');
-
-    // --- GESTION DU BOUTON DE BASCULE DANS LE MENU ---
-    const btnToggle = document.getElementById('btn-toggle-mobile');
-    if (btnToggle) {
-        btnToggle.addEventListener('click', function() {
-            isMobile = !isMobile; // On inverse l'état (true <-> false)
-            const mobileControls = document.getElementById('mobile-controls');
-            
-            if (isMobile) {
-                this.textContent = "📱 MODE TACTILE : ON";
-                this.style.borderColor = "#00ff66";
-                this.style.color = "#00ff66";
-                this.style.boxShadow = "0 0 10px #00ff66";
-                this.style.background = "rgba(0, 255, 102, 0.1)";
-                
-                // On affiche les contrôles mobiles (flex)
-                if (mobileControls) mobileControls.style.display = 'flex';
-                console.log("📱 Mode Tactile Mobile activé !");
-            } else {
-                this.textContent = "📱 MODE TACTILE : OFF";
-                this.style.borderColor = "#ff0055";
-                this.style.color = "#ff0055";
-                this.style.boxShadow = "0 0 5px #ff0055";
-                this.style.background = "rgba(255, 0, 85, 0.1)";
-                
-                // On cache les contrôles mobiles
-                if (mobileControls) mobileControls.style.display = 'none';
-                console.log("💻 Mode Ordinateur activé !");
-            }
-        });
-    }
-});
-
-// --- LOGIQUE D'ASSIGNATION (MENU) ---
 
 // ============================================================
 //  MOTEUR AUDIO ÉTENDU — SFX + LOFI SPACE + SLIDERS + PRÉVIEWS
