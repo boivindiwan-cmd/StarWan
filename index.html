@@ -179,7 +179,7 @@
         /* Transmission Radio */
         #radio-transmission {
             position: absolute;
-            bottom: 1100px; left: 50%; transform: translateX(-50%); width: 600px;
+            bottom: 120px; left: 50%; transform: translateX(-50%); width: 600px;
             background: rgba(0, 20, 10, 0.85); border: 3px solid #00ff66; color: #00ff66;
             padding: 15px; display: none; font-size: 10px; line-height: 1.6; z-index: 10; pointer-events: none;
         }
@@ -227,8 +227,8 @@
             pointer-events: none; z-index: 6;
             display: none;
         }
-
-        /* ====== MENU PRINCIPAL 3 COLONNES (CONFIG ORDINATEUR PAR DÉFAUT) ====== */
+    
+        /* ====== MENU PRINCIPAL 3 COLONNES ====== */
         #menu-wrapper {
             display: flex;
             align-items: flex-start;
@@ -241,7 +241,7 @@
             box-sizing: border-box;
         }
 
-        /* -- Panneau Tuto (gauche) AGRANDI -- */
+        /* -- Panneau Tuto (gauche) AGANDI -- */
         #tuto-panel {
             flex: 0 0 350px;
             background: #0d001a;
@@ -376,52 +376,6 @@
         #tuto-panel::-webkit-scrollbar, #scores-panel::-webkit-scrollbar { width: 4px; }
         #tuto-panel::-webkit-scrollbar-thumb, #scores-panel::-webkit-scrollbar-thumb { background: #8000ff; }
 
-        /* ==========================================================================
-           STYLE ADAPTATIF UNIQUEMENT POUR TÉLÉPHONES & ÉCRANS COMPACTS (< 900px)
-           ========================================================================== */
-        @media screen and (max-width: 900px) {
-            #menu-wrapper {
-                flex-direction: column;
-                align-items: center;
-                gap: 15px;
-                padding-top: 2vh;
-                overflow-y: auto;
-                height: auto;
-            }
-
-            /* On masque le guide de vol qui ne concerne que le clavier d'ordinateur */
-            #tuto-panel {
-                display: none !important;
-            }
-
-            #menu-center {
-                min-width: 100%;
-                width: 100%;
-            }
-
-            .title {
-                font-size: 32px; /* Réduction du titre pour mobile */
-            }
-
-            .subtitle {
-                font-size: 10px;
-                margin-bottom: 15px;
-            }
-
-            .controls-panel {
-                max-width: 90%;
-                font-size: 8px;
-            }
-
-            #scores-panel {
-                flex: 1 1 auto;
-                width: 90%;
-                max-width: 350px;
-                padding: 15px;
-                max-height: 40vh;
-            }
-        }
-
     </style>
 </head>
 <body>
@@ -509,41 +463,7 @@
                 <div>SFX VOL: <input type="range" id="vol-sfx" min="0" max="1" step="0.1" value="0.5"></div>
                 <div>MUSIC VOL: <input type="range" id="vol-music" min="0" max="1" step="0.1" value="0.3"></div>
             </div>
-<!-- Bouton de partage -->
-<div style="text-align: center; margin-bottom: 15px;">
- <!-- Bouton et Script en un seul bloc -->
-<button id="btn-share" onclick="partagerJeu(this)" style="font-family: 'Press Start 2P', monospace; font-size: 10px; color: #ffea00; background: #330066; border: 2px solid #8000ff; padding: 10px 20px; cursor: pointer; transition: 0.3s;">Lien de partage du jeu ici !</button>
 
-<script>
-function partagerJeu(btn) {
-    try {
-        const lien = window.location.href;
-        
-        // Copie le lien dans le presse-papier
-        navigator.clipboard.writeText(lien).then(() => {
-            const texteOriginal = btn.textContent;
-            btn.textContent = "MERCI !";
-            btn.style.borderColor = "#00ff66";
-            btn.style.color = "#00ff66";
-            
-            // Revenir à l'état original après 2 secondes
-            setTimeout(() => {
-                btn.textContent = texteOriginal;
-                btn.style.borderColor = "#8000ff";
-                btn.style.color = "#ffea00";
-            }, 2000);
-        }).catch(err => {
-            console.error("Erreur de copie :", err);
-            btn.textContent = "ERREUR";
-        });
-    } catch(e) {
-        console.error("Erreur fatale bouton :", e);
-    }
-}
-</script>
-
-
-</div>
             <button class="btn blink" id="btn-play">DÉMARRER VOL</button>
         </div>
 
@@ -653,72 +573,10 @@ function partagerJeu(btn) {
     <div class="boss-name" style="color:#ff4444; font-size:8px;">💀 COQUE: <span id="boss-hp-text">200</span> PV</div>
     <div class="boss-bar" style="border-color:#ff4444;"><div id="boss-bar-fill" style="background:#ff4444; width:100%;"></div></div>
 </div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-// ======================================================
-// ======== CONFIGURATION TOUCHES & MANETTE ============
-// ======================================================
-
-// Empêcher l'ouverture du menu clic-droit du navigateur
-document.addEventListener('contextmenu', event => event.preventDefault());
-
-let keysConfig = {
-    keyUp: 'z', keyDown: 's', keyLeft: 'q', keyRight: 'd',
-    keyShootLaser: ' ', keyShootMissile: 'Mouse0', keyShield: 'Mouse2'
-};
-
-window.assignKey = function(action) {
-    const btn = event.target;
-    const oldText = btn.innerText;
-    btn.innerText = "CLIQUE/TOUCHE...";
-    btn.style.background = "#ff0055"; 
-
-    // Fonction pour gérer l'appui (clavier OU souris)
-    const handleInput = (e) => {
-        let pressed = "";
-        
-        // Si c'est un clic souris
-        if (e.type === 'mousedown') {
-            if (e.button === 0) pressed = 'Mouse0';      // Clic Gauche
-            else if (e.button === 1) pressed = 'Mouse1'; // Clic Molette
-            else if (e.button === 2) pressed = 'Mouse2'; // Clic Droit
-        } 
-        // Si c'est une touche clavier
-        else {
-            pressed = e.key === ' ' ? ' ' : e.key.toLowerCase();
-        }
-
-        // Sauvegarde
-        keysConfig[action] = pressed;
-        
-        // Mise à jour visuelle du bouton
-        btn.innerText = getDisplayKeyName(pressed);
-        btn.style.background = "#330066";
-        
-        // Nettoyage : on retire les écouteurs pour ne pas bloquer le jeu
-        window.removeEventListener('keydown', handleInput);
-        window.removeEventListener('mousedown', handleInput);
-        
-        // On empêche le clic de se propager immédiatement (évite de tirer en configurant)
-        e.preventDefault();
-        e.stopPropagation();
-    };
-
-    // On écoute le clavier et la souris
-    window.addEventListener('keydown', handleInput);
-    window.addEventListener('mousedown', handleInput);
-};
-
-// Fonction utilitaire pour afficher un nom propre (ex: "Mouse0" -> "CLIC GAUCHE")
-function getDisplayKeyName(key) {
-    if (key === ' ') return 'SPACE';
-    if (key.toLowerCase() === 'mouse0') return 'CLIC GAUCHE';
-    if (key.toLowerCase() === 'mouse1') return 'CLIC MOLETTE';
-    if (key.toLowerCase() === 'mouse2') return 'CLIC DROIT';
-    return key.toUpperCase();
-}
-</script>
-<script>
-
 // ======================================================
 // ======== SUPABASE + HIGH SCORES + PSEUDO ============
 // ======================================================
@@ -772,35 +630,6 @@ window.addEventListener('DOMContentLoaded', () => {
 
     try { initSupabase(); } catch(e) { console.error("initSupabase error:", e); useSupabase = false; }
     try { fetchHighScores(); } catch(e) { console.error("fetchHighScores error:", e); }
-
-    // --- AUDIO SLIDER SETUP (from merged listener) ---
-// preview musique
-    const volMusic = document.getElementById('vol-music');
-    if (volMusic) {
-        volMusic.addEventListener('input', (e) => {
-            musicVolume = parseFloat(e.target.value);
-            sfx.updateVolumes();
-    sfx.playStartup();
-            sfx.playMenuTick();
-            // preview rapide
-            sfx.previewMusic();
-        });
-    }
-    // volume SFX
-    const volSfx = document.getElementById('vol-sfx');
-    if (volSfx) {
-        volSfx.addEventListener('input', (e) => {
-            sfxVolume = parseFloat(e.target.value);
-            sfx.updateVolumes();
-    sfx.playStartup();
-            sfx.playMenuTick();
-        });
-    }
-    // sons hover / click sur les boutons menu
-    document.querySelectorAll('.btn').forEach(btn => {
-        btn.addEventListener('mouseenter', () => sfx.playMenuHover());
-        btn.addEventListener('click', () => sfx.playMenuClick());
-    });
 });
 
 function getLocalScores() {
@@ -935,494 +764,169 @@ async function submitScore(finalScore, finalRound) {
 </script>
 
 <script>
-    
-// --- VARIABLES MOBILE & MANETTE ---
-let isMobile = false; // 📱 Désactivé par défaut au démarrage
-let mobileMoveX = 0, mobileMoveY = 0;
-let isMobileLaser = false, isMobileMissile = false, isMobileShield = false;
+// --- CONFIGURATION TOUCHES & SOURIS ---
+let keysConfig = {
+    keyUp: 'z', keyDown: 's', keyLeft: 'q', keyRight: 'd',
+    keyShootLaser: ' ', keyShootMissile: 'Mouse0', keyShield: 'Mouse2'
+};
+let currentAssigningKey = null;
 
-// --- DÉTECTION ET SETUP TACTILE ---
-// On configure les contrôles tactiles pour qu'ils soient prêts à l'emploi
+function getDisplayKeyName(key) {
+    if (key === ' ') return 'SPACE';
+    if (key.toLowerCase() === 'mouse0') return 'CLIC GAUCHE';
+    if (key.toLowerCase() === 'mouse1') return 'CLIC MOLETTE';
+    if (key.toLowerCase() === 'mouse2') return 'CLIC DROIT';
+    return key.toUpperCase();
+}
 
-    // Joystick tactile
-    const zone = document.getElementById('joystick-zone');
-    const knob = document.getElementById('joystick-knob');
-    let jx = 0, jy = 0;
+function assignKey(action) {
+    currentAssigningKey = action;
+    const btn = event.target;
+    btn.innerText = "PRESSE TOUCHE/CLIC";
+    btn.style.background = "#8000ff";
+    btn.style.color = "#fff";
+}
 
-    if(zone) {
-        zone.addEventListener('touchmove', (e) => {
-            if (!isMobile) return; // Ne fait rien si le mode tactile n'est pas activé
-            e.preventDefault();
-            let rect = zone.getBoundingClientRect();
-            let touch = e.targetTouches[0];
-            let x = touch.clientX - rect.left - rect.width/2;
-            let y = touch.clientY - rect.top - rect.height/2;
-            let maxR = rect.width/2;
-            let dist = Math.sqrt(x*x + y*y);
-            if(dist > maxR) { x = (x/dist)*maxR; y = (y/dist)*maxR; }
-            knob.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`;
-            mobileMoveX = x / maxR;
-            mobileMoveY = -(y / maxR); // Inversé pour correspondre au jeu
-        }, {passive: false});
+function updateAssignUI(pressed) {
+    const btns = document.querySelectorAll('.key-btn');
+    let indexMap = { 'keyUp':0, 'keyDown':1, 'keyLeft':2, 'keyRight':3, 'keyShootLaser':4, 'keyShootMissile':5, 'keyShield':6 };
+    const currentBtn = btns[indexMap[currentAssigningKey]];
+    currentBtn.innerText = getDisplayKeyName(pressed);
+    currentBtn.style.background = "#330066";
+    currentBtn.style.color = "#ffea00";
+    currentAssigningKey = null;
+}
 
-        zone.addEventListener('touchend', () => {
-            knob.style.transform = `translate(-50%, -50%)`;
-            mobileMoveX = 0; mobileMoveY = 0;
-        });
+window.addEventListener('keydown', (e) => {
+    if (currentAssigningKey) {
+        e.preventDefault();
+        let pressed = e.key === " " ? " " : e.key;
+        keysConfig[currentAssigningKey] = pressed;
+        updateAssignUI(pressed);
+    } else if (gameActive && !isDying) {
+        if(e.key === ' ' || e.key === keysConfig.keyShootLaser) e.preventDefault();
+        keysPressed[e.key.toLowerCase()] = true;
+        if(e.key.toLowerCase() === 'p' || e.key === 'Escape') togglePause();
     }
+});
+window.addEventListener('keyup', (e) => { if(gameActive && !isDying) keysPressed[e.key.toLowerCase()] = false; });
 
-    // Boutons tactiles
-    const setupBtn = (id, varName) => {
-        const btn = document.getElementById(id);
-        if(!btn) return;
-        btn.addEventListener('touchstart', (e) => { 
-            if (!isMobile) return;
-            e.preventDefault(); 
-            window[varName] = true; 
-        }, {passive: false});
-        btn.addEventListener('touchend', (e) => { 
-            if (!isMobile) return;
-            e.preventDefault(); 
-            window[varName] = false; 
-        }, {passive: false});
-    };
-    setupBtn('btn-mob-laser', 'isMobileLaser');
-    setupBtn('btn-mob-missile', 'isMobileMissile');
-    setupBtn('btn-mob-shield', 'isMobileShield');
+window.addEventListener('mousedown', (e) => {
+    if (currentAssigningKey) {
+        e.preventDefault();
+        let pressed = 'Mouse' + e.button;
+        keysConfig[currentAssigningKey] = pressed;
+        updateAssignUI(pressed);
+    } else if (gameActive && !isDying && e.target.tagName !== 'BUTTON' && e.target.tagName !== 'INPUT') {
+        keysPressed['mouse' + e.button] = true;
+    }
+});
+window.addEventListener('mouseup', (e) => {
+    if (gameActive && !isDying) keysPressed['mouse' + e.button] = false;
+});
+window.addEventListener('contextmenu', e => { e.preventDefault(); });
 
-// --- LOGIQUE D'ASSIGNATION (MENU) ---
-
-// ============================================================
-//  MOTEUR AUDIO ÉTENDU — SFX + LOFI SPACE + SLIDERS + PRÉVIEWS
-// ============================================================
+// --- MOTEUR AUDIO 8-BIT & AMBIANCE ---
 let audioCtx = null;
-let sfxBus = null, musicBus = null;
-let sfxVolume = 0.7, musicVolume = 0.35;
-let musicNodes = []; // array of active music nodes to stop cleanly
-let ambientLoopId = null;
-let noiseBufferCache = {}; // duration -> buffer
-
-// ---- Noise helper : génère un buffer de bruit blanc ----
-function noiseBuffer(duration) {
-    if (noiseBufferCache[duration]) return noiseBufferCache[duration];
-    const len = Math.ceil(audioCtx.sampleRate * duration);
-    const buf = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
-    const d = buf.getChannelData(0);
-    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
-    noiseBufferCache[duration] = buf;
-    return buf;
-}
-
-// ---- Initialisation lazy du contexte audio ----
-function ensureAudio() {
-    if (!audioCtx) {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        sfxBus = audioCtx.createGain(); sfxBus.gain.value = sfxVolume;
-        sfxBus.connect(audioCtx.destination);
-        musicBus = audioCtx.createGain(); musicBus.gain.value = musicVolume * 0.45;
-        musicBus.connect(audioCtx.destination);
-    }
-    if (audioCtx.state === 'suspended') audioCtx.resume();
-    return audioCtx;
-}
-
-// ---- CLASSE RÉTRO AUDIO ÉTENDUE ----
+let sfxVolume = 0.5, musicVolume = 0.3;
+let musicOsc1, musicOsc2, musicGain;
 class RetroAudio {
-    init() { ensureAudio(); }
-
-    // 🔫 LASER — tir arcade nerveux
+    init() {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+    }
+    
     playLaser() {
-        const ctx = ensureAudio();
-        const t = ctx.currentTime;
-        const osc = ctx.createOscillator();
-        const g  = ctx.createGain();
+        if (!audioCtx) return;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain); gain.connect(audioCtx.destination);
         osc.type = 'square';
-        osc.frequency.setValueAtTime(880, t);
-        osc.frequency.exponentialRampToValueAtTime(110, t + 0.10);
-        g.gain.setValueAtTime(sfxVolume * 0.35, t);
-        g.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
-        osc.connect(g); g.connect(sfxBus);
-        osc.start(t); osc.stop(t + 0.13);
+        osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(110, audioCtx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.3 * sfxVolume, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+        osc.start(); osc.stop(audioCtx.currentTime + 0.1);
     }
 
-    // 🚀 MISSILE — whoosh + propulsion
-    playMissile() {
-        const ctx = ensureAudio();
-        const t = ctx.currentTime;
-        // whoosh initial
-        const buf = noiseBuffer(0.15);
-        const src = ctx.createBufferSource();
-        src.buffer = buf;
-        const flt = ctx.createBiquadFilter();
-        flt.type = 'bandpass'; flt.frequency.value = 600; flt.Q.value = 1.5;
-        const g = ctx.createGain();
-        g.gain.setValueAtTime(sfxVolume * 0.5, t);
-        g.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
-        src.connect(flt); flt.connect(g); g.connect(sfxBus);
-        src.start(t);
-        // ronronnement moteur
-        const osc = ctx.createOscillator();
-        const g2 = ctx.createGain();
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(80, t + 0.1);
-        osc.frequency.linearRampToValueAtTime(160, t + 0.5);
-        g2.gain.setValueAtTime(sfxVolume * 0.15, t + 0.1);
-        g2.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
-        osc.connect(g2); g2.connect(sfxBus);
-        osc.start(t + 0.1); osc.stop(t + 0.52);
-    }
-
-    // 🛡️ BOUCLIER — activation
-    playShieldOn() {
-        const ctx = ensureAudio();
-        const t = ctx.currentTime;
-        const osc = ctx.createOscillator();
-        const g  = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(300, t);
-        osc.frequency.linearRampToValueAtTime(1200, t + 0.18);
-        g.gain.setValueAtTime(sfxVolume * 0.45, t);
-        g.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
-        osc.connect(g); g.connect(sfxBus);
-        osc.start(t); osc.stop(t + 0.23);
-    }
-
-    // 🛡️ IMPACT BOUCLIER
-    playShieldHit() {
-        const ctx = ensureAudio();
-        const t = ctx.currentTime;
-        const osc = ctx.createOscillator();
-        const g  = ctx.createGain();
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(400, t);
-        osc.frequency.exponentialRampToValueAtTime(150, t + 0.08);
-        g.gain.setValueAtTime(sfxVolume * 0.5, t);
-        g.gain.exponentialRampToValueAtTime(0.001, t + 0.10);
-        osc.connect(g); g.connect(sfxBus);
-        osc.start(t); osc.stop(t + 0.11);
-    }
-
-    // 💥 EXPLOSION VAISSEAU / GAME OVER
     playExplosion() {
-        const ctx = ensureAudio();
-        const t = ctx.currentTime;
-        const buf = noiseBuffer(0.6);
-        const src = ctx.createBufferSource();
-        src.buffer = buf;
-        const flt = ctx.createBiquadFilter();
-        flt.type = 'lowpass'; flt.frequency.value = 350;
-        const g = ctx.createGain();
-        g.gain.setValueAtTime(sfxVolume * 0.9, t);
-        g.gain.exponentialRampToValueAtTime(0.001, t + 0.6);
-        src.connect(flt); flt.connect(g); g.connect(sfxBus);
-        src.start(t);
-        // onde de choc grave
-        const osc = ctx.createOscillator();
-        const g2 = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(120, t);
-        osc.frequency.exponentialRampToValueAtTime(30, t + 0.45);
-        g2.gain.setValueAtTime(sfxVolume * 0.8, t);
-        g2.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
-        osc.connect(g2); g2.connect(sfxBus);
-        osc.start(t); osc.stop(t + 0.52);
+        if (!audioCtx) return;
+        const bufferSize = audioCtx.sampleRate * 0.3;
+        const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+
+        const noise = audioCtx.createBufferSource();
+        noise.buffer = buffer;
+        const filter = audioCtx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(800, audioCtx.currentTime);
+        filter.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.3);
+
+        const gain = audioCtx.createGain();
+        gain.gain.setValueAtTime(0.7 * sfxVolume, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+
+        noise.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination);
+        noise.start(); noise.stop(audioCtx.currentTime + 0.3);
     }
 
-    // 💥 METEOR HIT — crack sec
-    playMeteorHit() {
-        const ctx = ensureAudio();
-        const t = ctx.currentTime;
-        const buf = noiseBuffer(0.12);
-        const src = ctx.createBufferSource();
-        src.buffer = buf;
-        const flt = ctx.createBiquadFilter();
-        flt.type = 'highpass'; flt.frequency.value = 2000;
-        const g = ctx.createGain();
-        g.gain.setValueAtTime(sfxVolume * 0.7, t);
-        g.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
-        src.connect(flt); flt.connect(g); g.connect(sfxBus);
-        src.start(t);
-        // résonance crystalline
-        const osc = ctx.createOscillator();
-        const g2 = ctx.createGain();
-        osc.type = 'square';
-        osc.frequency.setValueAtTime(1200, t);
-        osc.frequency.exponentialRampToValueAtTime(200, t + 0.18);
-        g2.gain.setValueAtTime(sfxVolume * 0.2, t);
-        g2.gain.exponentialRampToValueAtTime(0.001, t + 0.20);
-        osc.connect(g2); g2.connect(sfxBus);
-        osc.start(t); osc.stop(t + 0.22);
-    }
-
-    // 👽 ALIEN EXPLODE — destruction vaisseau ennemi
-    playAlienExplode() {
-        const ctx = ensureAudio();
-        const t = ctx.currentTime;
-        const buf = noiseBuffer(0.25);
-        const src = ctx.createBufferSource();
-        src.buffer = buf;
-        const flt = ctx.createBiquadFilter();
-        flt.type = 'bandpass'; flt.frequency.value = 800; flt.Q.value = 2;
-        const g = ctx.createGain();
-        g.gain.setValueAtTime(sfxVolume * 0.65, t);
-        g.gain.exponentialRampToValueAtTime(0.001, t + 0.28);
-        src.connect(flt); flt.connect(g); g.connect(sfxBus);
-        src.start(t);
-    }
-
-    // 🚨 WARNING — alarme
-    playWarning() {
-        const ctx = ensureAudio();
-        const t = ctx.currentTime;
-        const osc = ctx.createOscillator();
-        const g  = ctx.createGain();
-        osc.type = 'square';
-        for (let i = 0; i < 3; i++) {
-            const ts = t + i * 0.22;
-            osc.frequency.setValueAtTime(440, ts);
-            osc.frequency.setValueAtTime(660, ts + 0.11);
-        }
-        g.gain.setValueAtTime(sfxVolume * 0.35, t);
-        g.gain.setValueAtTime(sfxVolume * 0.35, t + 0.55);
-        g.gain.setValueAtTime(0.001, t + 0.62);
-        osc.connect(g); g.connect(sfxBus);
-        osc.start(t); osc.stop(t + 0.65);
-    }
-
-    // 🔥 FIRE / CANON
-    playFire() {
-        const ctx = ensureAudio();
-        const t = ctx.currentTime;
-        const buf = noiseBuffer(0.08);
-        const src = ctx.createBufferSource();
-        src.buffer = buf;
-        const flt = ctx.createBiquadFilter();
-        flt.type = 'highpass'; flt.frequency.value = 3000;
-        const g = ctx.createGain();
-        g.gain.setValueAtTime(sfxVolume * 0.6, t);
-        g.gain.exponentialRampToValueAtTime(0.001, t + 0.09);
-        src.connect(flt); flt.connect(g); g.connect(sfxBus);
-        src.start(t);
-    }
-
-    // 🚀 STARTUP — allumage moteur en début de partie
-    playStartup() {
-        const ctx = ensureAudio();
-        const t = ctx.currentTime;
-        // starter
-        const osc = ctx.createOscillator();
-        const g  = ctx.createGain();
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(60, t);
-        osc.frequency.exponentialRampToValueAtTime(220, t + 0.35);
-        g.gain.setValueAtTime(sfxVolume * 0.5, t);
-        g.gain.exponentialRampToValueAtTime(sfxVolume * 0.3, t + 0.3);
-        g.gain.exponentialRampToValueAtTime(0.001, t + 0.6);
-        osc.connect(g); g.connect(sfxBus);
-        osc.start(t); osc.stop(t + 0.65);
-        // souffle
-        const buf = noiseBuffer(0.4);
-        const src = ctx.createBufferSource();
-        src.buffer = buf;
-        const flt = ctx.createBiquadFilter();
-        flt.type = 'lowpass'; flt.frequency.setValueAtTime(400, t);
-        const g2 = ctx.createGain();
-        g2.gain.setValueAtTime(sfxVolume * 0.25, t);
-        g2.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
-        src.connect(flt); flt.connect(g2); g2.connect(sfxBus);
-        src.start(t);
-    }
-
-    // 👆 MENU HOVER — survol bouton
-    playMenuHover() {
-        const ctx = ensureAudio();
-        const t = ctx.currentTime;
-        const osc = ctx.createOscillator();
-        const g  = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(660, t);
-        g.gain.setValueAtTime(sfxVolume * 0.12, t);
-        g.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
-        osc.connect(g); g.connect(sfxBus);
-        osc.start(t); osc.stop(t + 0.07);
-    }
-
-    // 👆 MENU TICK — slider / volume test
-    playMenuTick() {
-        const ctx = ensureAudio();
-        const t = ctx.currentTime;
-        const osc = ctx.createOscillator();
-        const g  = ctx.createGain();
-        osc.type = 'square';
-        osc.frequency.setValueAtTime(880, t);
-        osc.frequency.setValueAtTime(1100, t + 0.04);
-        g.gain.setValueAtTime(sfxVolume * 0.2, t);
-        g.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
-        osc.connect(g); g.connect(sfxBus);
-        osc.start(t); osc.stop(t + 0.09);
-    }
-
-    // 👆 MENU CLICK — clic valider
-    playMenuClick() {
-        const ctx = ensureAudio();
-        const t = ctx.currentTime;
-        const osc = ctx.createOscillator();
-        const g  = ctx.createGain();
-        osc.type = 'square';
-        osc.frequency.setValueAtTime(440, t);
-        osc.frequency.setValueAtTime(660, t + 0.06);
-        osc.frequency.setValueAtTime(880, t + 0.12);
-        g.gain.setValueAtTime(sfxVolume * 0.3, t);
-        g.gain.setValueAtTime(sfxVolume * 0.3, t + 0.16);
-        g.gain.setValueAtTime(0.001, t + 0.22);
-        osc.connect(g); g.connect(sfxBus);
-        osc.start(t); osc.stop(t + 0.23);
-    }
-
-    // 💥 LOCK — verrouillage missile
-    playLock() {
-        const ctx = ensureAudio();
-        const t = ctx.currentTime;
-        const osc = ctx.createOscillator();
-        const g  = ctx.createGain();
-        osc.type = 'square';
-        osc.frequency.setValueAtTime(330, t);
-        osc.frequency.setValueAtTime(660, t + 0.08);
-        osc.frequency.setValueAtTime(990, t + 0.16);
-        g.gain.setValueAtTime(sfxVolume * 0.25, t);
-        g.gain.setValueAtTime(sfxVolume * 0.25, t + 0.2);
-        g.gain.setValueAtTime(0.001, t + 0.28);
-        osc.connect(g); g.connect(sfxBus);
-        osc.start(t); osc.stop(t + 0.30);
-    }
-
-    // 💥 HIT générique
     playHit() {
-        const ctx = ensureAudio();
-        const t = ctx.currentTime;
-        const osc = ctx.createOscillator();
-        const g  = ctx.createGain();
+        if (!audioCtx) return;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain); gain.connect(audioCtx.destination);
         osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(220, t);
-        osc.frequency.exponentialRampToValueAtTime(80, t + 0.10);
-        g.gain.setValueAtTime(sfxVolume * 0.45, t);
-        g.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
-        osc.connect(g); g.connect(sfxBus);
-        osc.start(t); osc.stop(t + 0.13);
+        osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+        osc.frequency.linearRampToValueAtTime(40, audioCtx.currentTime + 0.2);
+        gain.gain.setValueAtTime(0.6 * sfxVolume, audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+        osc.start(); osc.stop(audioCtx.currentTime + 0.2);
     }
 
-    // ---- MISE À JOUR VOLUMES EN TEMPS RÉEL ----
-    updateVolumes() {
-        if (sfxBus)   sfxBus.gain.value   = sfxVolume;
-        if (musicBus) musicBus.gain.value = musicVolume * 0.45;
+    playLock() {
+        if (!audioCtx) return;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(1200, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.15 * sfxVolume, audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.05);
+        osc.start(); osc.stop(audioCtx.currentTime + 0.05);
     }
 
-    // ---- DÉMARRAGE MUSIQUE LOFI SPACE ----
     startAmbientMusic() {
-        const ctx = ensureAudio();
-        if (musicNodes.length > 0) return; // déjà jouée
+        if (!audioCtx || musicGain) return;
+        musicGain = audioCtx.createGain();
+        musicGain.connect(audioCtx.destination);
+        musicGain.gain.value = musicVolume * 0.5;
 
-        const mb = musicBus;
+        musicOsc1 = audioCtx.createOscillator();
+        musicOsc2 = audioCtx.createOscillator();
+        musicOsc1.type = 'sine';
+        musicOsc2.type = 'triangle';
+        musicOsc1.frequency.value = 65.41;
+        musicOsc2.frequency.value = 98.00;
 
-        // — Pad d'ambiance grave (space rumble) —
-        const padFreqs = [65.41, 98.00, 130.81, 196.00];
-        padFreqs.forEach(freq => {
-            const osc = ctx.createOscillator();
-            osc.type = 'sine';
-            osc.frequency.value = freq;
-            const g = ctx.createGain();
-            g.gain.value = musicVolume * 0.18;
-            osc.connect(g); g.connect(mb);
-            osc.start(); musicNodes.push({ osc, g });
-        });
-
-        // — LFO pour vibrato spatial —
-        const lfo = ctx.createOscillator();
-        const lfoGain = ctx.createGain();
-        lfo.frequency.value = 0.3;
-        lfoGain.gain.value = 3;
-        lfo.connect(lfoGain);
-        lfo.start();
-        musicNodes.push({ osc: lfo, g: lfoGain });
-
-        // — Mélodie lofi aléatoire —
-        const melodyNotes = [261.63, 293.66, 329.63, 392.00, 440.00, 523.25];
-        const melodyOsc = ctx.createOscillator();
-        melodyOsc.type = 'triangle';
-        melodyOsc.frequency.value = melodyNotes[0];
-        const melodyGain = ctx.createGain();
-        melodyGain.gain.value = musicVolume * 0.12;
-        const melodyFilter = ctx.createBiquadFilter();
-        melodyFilter.type = 'lowpass';
-        melodyFilter.frequency.value = 1200;
-        melodyOsc.connect(melodyFilter);
-        melodyFilter.connect(melodyGain);
-        melodyGain.connect(mb);
-        melodyOsc.start();
-        musicNodes.push({ osc: melodyOsc, g: melodyGain });
-
-        // sequence mélodie
-        let noteIdx = 0;
-        const scheduleMelody = () => {
-            if (!audioCtx || audioCtx.state === 'closed') return;
-            noteIdx = (noteIdx + Math.floor(Math.random() * 3)) % melodyNotes.length;
-            melodyOsc.frequency.setTargetAtTime(melodyNotes[noteIdx], audioCtx.currentTime, 0.3);
-            ambientLoopId = setTimeout(scheduleMelody, 1800 + Math.random() * 2000);
-        };
-        ambientLoopId = setTimeout(scheduleMelody, 2000);
-
-        // — Bruit cosmique (very subtle) —
-        const cosmicBuf = noiseBuffer(4.0);
-        const cosmicSrc = ctx.createBufferSource();
-        cosmicSrc.buffer = cosmicBuf; cosmicSrc.loop = true;
-        const cosmicFlt = ctx.createBiquadFilter();
-        cosmicFlt.type = 'lowpass'; cosmicFlt.frequency.value = 200;
-        const cosmicGain = ctx.createGain();
-        cosmicGain.gain.value = musicVolume * 0.06;
-        cosmicSrc.connect(cosmicFlt); cosmicFlt.connect(cosmicGain); cosmicGain.connect(mb);
-        cosmicSrc.start();
-        musicNodes.push({ osc: cosmicSrc, g: cosmicGain });
+        const filter = audioCtx.createBiquadFilter();
+        filter.type = 'lowpass'; filter.frequency.value = 400;
+        
+        musicOsc1.connect(filter);
+        musicOsc2.connect(filter);
+        filter.connect(musicGain);
+        
+        musicOsc1.start(); musicOsc2.start();
     }
 
-    // ---- ARRÊTER LA MUSIQUE ----
-    stopAmbientMusic() {
-        if (ambientLoopId) { clearTimeout(ambientLoopId); ambientLoopId = null; }
-        musicNodes.forEach(node => {
-            try { node.osc.stop(); } catch(e) {}
-        });
-        musicNodes = [];
-    }
-
-    // ---- PREVIEW MUSIQUE (test slider) ----
-    previewMusic() {
-        const ctx = ensureAudio();
-        const t = ctx.currentTime;
-        const notes = [261.63, 329.63, 392.00, 523.25];
-        notes.forEach((f, i) => {
-            const osc = ctx.createOscillator();
-            const g  = ctx.createGain();
-            osc.type = 'triangle';
-            osc.frequency.value = f;
-            g.gain.setValueAtTime(musicVolume * 0.3, t + i * 0.12);
-            g.gain.exponentialRampToValueAtTime(0.001, t + i * 0.12 + 0.35);
-            osc.connect(g); g.connect(musicBus);
-            osc.start(t + i * 0.12);
-            osc.stop(t + i * 0.12 + 0.40);
-        });
+    updateVolumes() {
+        if (musicGain) musicGain.gain.value = musicVolume * 0.5;
     }
 }
 const sfx = new RetroAudio();
 
-// ---- SLIDERS VOLUME + PRÉVIEW DANS LE MENU ----
-
-// ============================================================
-//  ANCIEN BLOCK AUDIO SUPPRIMÉ — REMPLACÉ PAR LA CLASSE CI-DESSUS
-// ============================================================
-
-
 document.getElementById('vol-sfx').addEventListener('input', (e) => { sfxVolume = parseFloat(e.target.value); });
-document.getElementById('vol-music').addEventListener('input', (e) => { musicVolume = parseFloat(e.target.value); sfx.updateVolumes();
-    sfx.playStartup(); });
+document.getElementById('vol-music').addEventListener('input', (e) => { musicVolume = parseFloat(e.target.value); sfx.updateVolumes(); });
 
 // --- VARIABLES DU MOTEUR ---
 let scene, camera, renderer;
@@ -1440,65 +944,6 @@ let laserHeat = 0, laserOverheated = false;
 let missileReady = true, lastMissileTime = 0, missileCooldown = 3000;
 let stars, meteors = [], aliens = [], lasers = [], alienProjectiles = [], playerMissiles = [], particles = [];
 let keysPressed = {};
-// --- GESTION DES TOUCHES (CLAVIER) ---
-window.addEventListener('keydown', (e) => {
-    // Si tu es en train de changer une touche (assignKey), on ne bouge pas
-    if (typeof currentAssigningKey !== 'undefined' && currentAssigningKey) return;
-    
-    // Sinon, on enregistre la touche pressée
-    keysPressed[e.key.toLowerCase()] = true;
-});
-
-window.addEventListener('keyup', (e) => {
-    keysPressed[e.key.toLowerCase()] = false;
-});
-// --- GESTION DES CLICS SOURIS ---
-window.addEventListener('mousedown', (e) => {
-    // Si on change une touche, on ne tire pas/fait pas bouger le jeu
-    if (typeof currentAssigningKey !== 'undefined' && currentAssigningKey) return;
-    
-    // On simule une touche nommée "mouse0", "mouse1", "mouse2"
-    keysPressed['mouse' + e.button] = true;
-});
-
-window.addEventListener('mouseup', (e) => {
-    keysPressed['mouse' + e.button] = false;
-});
-// --- GESTION MANETTE ---
-function updateGamepad() {
-    const gamepads = navigator.getGamepads();
-    if (!gamepads[0]) return; // Aucune manette détectée
-
-    const gp = gamepads[0];
-
-    // -- Gestion des déplacements (Stick gauche) --
-    // axes[0] = gauche/droite, axes[1] = haut/bas
-    // On simule les touches directionnelles
-    keysPressed['arrowleft'] = (gp.axes[0] < -0.5);
-    keysPressed['arrowright'] = (gp.axes[0] > 0.5);
-    keysPressed['arrowup'] = (gp.axes[1] < -0.5);
-    keysPressed['arrowdown'] = (gp.axes[1] > 0.5);
-
-    // -- Gestion des boutons --
-    // Bouton 0 (A sur Xbox / Croix sur PS) = Tir (Espace)
-    keysPressed[' '] = gp.buttons[0].pressed; 
-    
-    // Bouton 2 (X sur Xbox / Carré sur PS) = Bouclier (Clic droit / mouse2)
-    keysPressed['mouse2'] = gp.buttons[2].pressed;
-}
-
-// --- GESTION TACTILE (TELEPHONE) ---
-// On simule un clic gauche quand on touche l'écran
-window.addEventListener('touchstart', (e) => {
-    // Empêche le scroll de la page quand on joue
-    e.preventDefault(); 
-    keysPressed['mouse0'] = true;
-}, { passive: false });
-
-window.addEventListener('touchend', (e) => {
-    keysPressed['mouse0'] = false;
-});
-
 let playerAim = { x: 0, y: 0 };
 let lockedTarget = null, lastLockPlayTime = 0;
 let bossActive = false, bossHp = 200, maxBossHp = 200;
@@ -1552,7 +997,6 @@ function init() {
 // --- LOGIQUE METIER & CORRECTIONS ---
 function resetGame() {
     score = 0; round = 1;
-    sfx.playStartup();
     playerHp = 10.0; bossActive = false; bossSpawnedThisRound = false;
     bossShieldHp = 0;
     bossShieldMesh = null; 
@@ -1586,7 +1030,7 @@ function resetGame() {
     document.getElementById('wing-r').style.borderColor = "#8000ff";
     
     gameActive = true; isPaused = false;
-    triggerRadioTransmission("COMMANDANT : SYSTÈMES-EN-LIGNE. DÉFENDEZ-LE-SECTEUR !");
+    triggerRadioTransmission("COMMANDANT : SYSTÈMES EN LIGNE. DÉFENDEZ LE SECTEUR !");
     update();
 }
 
@@ -1623,8 +1067,7 @@ function damagePlayer(amt, bypassShield = false) {
 function startDeathSequence() {
     isDying = true;
     deathTimer = Date.now();
-    sfx.playWarning();
-    setTimeout(() => sfx.playExplosion(), 400);
+    sfx.playExplosion();
 
     ['hud-top','crosshair-container','target-reticle','pitch-ladder','cockpit-frame','wing-l','wing-r','boss-ui'].forEach(id => {
         const el = document.getElementById(id);
@@ -1910,7 +1353,6 @@ function manageEnemySpawning() {
 
     if (round % 5 === 0 && !bossActive && aliens.length === 0 && !bossSpawnedThisRound) {
         spawnAlien(3);
-        sfx.startBossMusic();
         bossSpawnedThisRound = true;
     }
     else if (!bossActive && aliens.length < 4) {
@@ -1980,34 +1422,26 @@ function update() {
             }
         }
 
-        // --- BOUCLIER ---
-        if ((keysPressed[keysConfig.keyShield.toLowerCase()] || isMobileShield) && !shieldActive && !shieldOnCooldown) {
+        if (keysPressed[keysConfig.keyShield.toLowerCase()] && !shieldActive && !shieldOnCooldown) {
             shieldActive = true;
-            sfx.playShieldOn();
             shieldStartTime = time;
             if(shieldVisualMesh){ shieldVisualMesh.visible = true; shieldVisualMesh.scale.set(1,1,1); }
             document.getElementById('shield-status-txt').innerText = "BOUCLIER ACTIF !";
             document.getElementById('shield-status-txt').style.color = '#8000ff';
         }
 
-        // --- DÉPLACEMENT (FUSION CLAVIER + MOBILE) ---
         let moveX=0, moveY=0;
         if (keysPressed[keysConfig.keyUp.toLowerCase()]) moveY=1;
         if (keysPressed[keysConfig.keyDown.toLowerCase()]) moveY=-1;
         if (keysPressed[keysConfig.keyLeft.toLowerCase()]) moveX=-1;
         if (keysPressed[keysConfig.keyRight.toLowerCase()]) moveX=1;
-
-        // Prise en compte du joystick tactile / manette
-        if (mobileMoveX !== 0) moveX = mobileMoveX;
-        if (mobileMoveY !== 0) moveY = mobileMoveY;
-
+        
         playerAim.x = THREE.MathUtils.lerp(playerAim.x, moveX*40, 0.02);
         playerAim.y = THREE.MathUtils.lerp(playerAim.y, moveY*30, 0.02);
         camera.rotation.y = -playerAim.x*0.012; camera.rotation.x = playerAim.y*0.012; camera.rotation.z = -playerAim.x*0.008;
         document.getElementById('pitch-ladder').style.transform = `translate(${-playerAim.x*0.8}px, ${playerAim.y*0.8}px) rotate(${-playerAim.x*0.4}deg)`;
 
-        // --- TIR LASER ---
-        if (keysPressed[keysConfig.keyShootLaser.toLowerCase()] || isMobileLaser) {
+        if (keysPressed[keysConfig.keyShootLaser.toLowerCase()]) {
             if (!laserOverheated) {
                 laserHeat += 1.8;
                 sfx.playLaser();
@@ -2038,10 +1472,8 @@ function update() {
         }
         document.getElementById('laser-bar-fill').style.width = (100-laserHeat)+'%';
 
-        // --- TIR MISSILE ---
-        if ((keysPressed[keysConfig.keyShootMissile.toLowerCase()] || isMobileMissile) && missileReady && lockedTarget) {
+        if (keysPressed[keysConfig.keyShootMissile.toLowerCase()] && missileReady && lockedTarget) {
             missileReady = false;
-            sfx.playMissile();
             lastMissileTime = time;
             const mis = new THREE.Mesh(new THREE.ConeGeometry(0.6, 3, 5), new THREE.MeshBasicMaterial({ color: 0x00ffff }));
             mis.rotation.x = Math.PI/2;
@@ -2051,7 +1483,6 @@ function update() {
             document.getElementById('missile-ammo-txt').innerText="RECHARGE"; document.getElementById('missile-ammo-txt').style.color='#ffaa00';
             document.getElementById('missile-bar-fill').classList.add('cooldown');
         }
-
         if (!missileReady) {
             const elapsed = time - lastMissileTime;
             document.getElementById('missile-bar-fill').style.width = Math.min(100, (elapsed/missileCooldown)*100)+'%';
@@ -2102,7 +1533,6 @@ function update() {
             }
             if(a.userData.type===3){ bossActive=false;
                 document.getElementById('boss-ui').style.display='none'; checkRound(); }
-                sfx.startAmbientMusic();
             scene.remove(a); aliens.splice(i, 1); continue;
         }
         
@@ -2177,7 +1607,7 @@ function update() {
                     if (bossShieldMesh && a.userData.shieldHp <= 0) {
                         a.remove(bossShieldMesh); // Utilise le groupe
                         bossShieldMesh = null;
-                        triggerRadioTransmission('BOUCLIER-DETRUIT ! Attaquez-la-coque !');
+                        triggerRadioTransmission('BOUCLIER DETRUIT ! Attaquez la coque !');
                     }
                     createExplosion(l.position, 0x0088ff, 0.8);
                     document.getElementById('boss-shield-bar-fill').style.width = Math.max(0,(a.userData.shieldHp/maxBossShieldHp)*100)+'%';
@@ -2242,7 +1672,7 @@ function update() {
                         if (bossShieldMesh && t.userData.shieldHp <= 0) {
                             t.remove(bossShieldMesh);
                             bossShieldMesh = null;
-                            triggerRadioTransmission('BOUCLIER-DÉTRUIT ! Attaquez-la-coque !');
+                            triggerRadioTransmission('BOUCLIER DÉTRUIT ! Attaquez la coque !');
                         }
                         createExplosion(m.position, 0x0088ff, 2.0);
                         document.getElementById('boss-shield-bar-fill').style.width = Math.max(0,(t.userData.shieldHp/maxBossShieldHp)*100)+'%';
@@ -2374,11 +1804,6 @@ document.getElementById('btn-play').addEventListener('click', () => {
             audioCtx.resume().catch(err => console.error("Audio resume error:", err));
         }
 
-        // 🎵 👉 C'EST ICI QU'ON LANCE LA MUSIQUE LOFI !
-        if (window.sfx && window.sfx.startAmbientMusic) {
-            window.sfx.startAmbientMusic();
-        }
-
         // 5. INITIALISATION DU JEU — wrapped so a failure never blocks startup
         try { init(); } catch(e) { console.error("init() error:", e); }
         try { resetGame(); } catch(e) { console.error("resetGame() error:", e); }
@@ -2391,7 +1816,6 @@ document.getElementById('btn-play').addEventListener('click', () => {
         try { resetGame(); } catch(e2) {}
     }
 });
-
 
 document.getElementById('btn-restart').addEventListener('click', () => {
     document.getElementById('gameover-container').style.display='none';
@@ -2421,259 +1845,5 @@ document.getElementById('btn-quit').addEventListener('click', () => {
 </script>
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js/v833ccba57c9e4d2798f2e76cebdd09a11778172276447" integrity="sha512-57MDmcccJXYtNnH+ZiBwzC4jb2rvgVCEokYN+L/nLlmO8rfYT/gIpW2A569iJ/3b+0UEasghjuZH/ma3wIs/EQ==" data-cf-beacon='{"version":"2024.11.0","token":"8607d2a720d14b038279025b2b5a82e5","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js/v833ccba57c9e4d2798f2e76cebdd09a11778172276447" integrity="sha512-57MDmcccJXYtNnH+ZiBwzC4jb2rvgVCEokYN+L/nLlmO8rfYT/gIpW2A569iJ/3b+0UEasghjuZH/ma3wIs/EQ==" data-cf-beacon='{"version":"2024.11.0","token":"8607d2a720d14b038279025b2b5a82e5","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
-<script>
-/* ============================================================
-   🔊 SYSTÈME AUDIO COMPLET PRO — StarDitWan (CORRIGÉ)
-   ============================================================ */
-(function(){
-    let actx = null;
-    let sfxBus, musicBus;
-    let musicPlaying = false;
-    let bossMusicPlaying = false;
-    let musicNodes = [];
-    let lofiNoiseNode = null;
-    let currentLoopTimeout = null;
-
-    function initAudio() {
-        if(actx) return;
-        window.AudioContext = window.AudioContext || window.webkitAudioContext;
-        actx = new AudioContext();
-        
-        sfxBus = actx.createGain();
-        musicBus = actx.createGain();
-        
-        window.sfxVolume = (typeof window.sfxVolume !== 'undefined') ? window.sfxVolume : 0.5;
-        window.musicVolume = (typeof window.musicVolume !== 'undefined') ? window.musicVolume : 0.5;
-        
-        sfxBus.gain.value = window.sfxVolume;
-        musicBus.gain.value = window.musicVolume;
-        
-        sfxBus.connect(actx.destination);
-        musicBus.connect(actx.destination);
-    }
-
-    function stopMusic() {
-        musicPlaying = false;
-        bossMusicPlaying = false;
-        clearTimeout(currentLoopTimeout);
-        if(lofiNoiseNode) {
-            try { lofiNoiseNode.stop(); } catch(e){}
-        }
-        musicNodes.forEach(node => {
-            try { node.stop(); } catch(e){}
-            try { node.disconnect(); } catch(e){}
-        });
-        musicNodes = [];
-    }
-
-    // --- MUSIQUE D'AMBIANCE LOFI CHILL ---
-    function startLofiMusic() {
-        if(!actx) initAudio();
-        stopMusic();
-        musicPlaying = true;
-        
-        const bufferSize = actx.sampleRate * 2;
-        const noiseBuffer = actx.createBuffer(1, bufferSize, actx.sampleRate);
-        const output = noiseBuffer.getChannelData(0);
-        for (let i = 0; i < bufferSize; i++) {
-            output[i] = (Math.random() * 2 - 1) * 0.05;
-        }
-        lofiNoiseNode = actx.createBufferSource();
-        lofiNoiseNode.buffer = noiseBuffer;
-        lofiNoiseNode.loop = true;
-        
-        const filter = actx.createBiquadFilter();
-        filter.type = 'lowpass';
-        filter.frequency.value = 300;
-        
-        lofiNoiseNode.connect(filter);
-        filter.connect(musicBus);
-        lofiNoiseNode.start();
-        musicNodes.push(lofiNoiseNode);
-        
-        function playPad() {
-            if(!musicPlaying || bossMusicPlaying) return;
-            const osc = actx.createOscillator();
-            const gain = actx.createGain();
-            osc.type = 'sine';
-            
-            const notes = [220, 261.63, 329.63, 392.00];
-            osc.frequency.value = notes[Math.floor(Math.random() * notes.length)] / 2;
-            
-            gain.gain.setValueAtTime(0.001, actx.currentTime);
-            gain.gain.linearRampToValueAtTime(0.15, actx.currentTime + 3);
-            gain.gain.linearRampToValueAtTime(0.001, actx.currentTime + 7);
-            
-            osc.connect(gain);
-            gain.connect(musicBus);
-            osc.start();
-            osc.stop(actx.currentTime + 7);
-            musicNodes.push(osc);
-            
-            currentLoopTimeout = setTimeout(playPad, 3500);
-        }
-        playPad();
-    }
-
-    // --- MUSIQUE DYNAMIQUE DU BOSS ---
-    function startBossMusic() {
-        if(!actx) initAudio();
-        stopMusic();
-        bossMusicPlaying = true;
-        
-        function playBossBeat() {
-            if(!bossMusicPlaying) return;
-            const osc = actx.createOscillator();
-            const gain = actx.createGain();
-            osc.type = 'sawtooth';
-            osc.frequency.setValueAtTime(65, actx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(20, actx.currentTime + 0.3);
-            
-            const filter = actx.createBiquadFilter();
-            filter.type = 'lowpass';
-            filter.frequency.setValueAtTime(1000, actx.currentTime);
-            filter.frequency.exponentialRampToValueAtTime(100, actx.currentTime + 0.3);
-            
-            gain.gain.setValueAtTime(0.3, actx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, actx.currentTime + 0.3);
-            
-            osc.connect(filter);
-            filter.connect(gain);
-            gain.connect(musicBus);
-            
-            osc.start();
-            osc.stop(actx.currentTime + 0.3);
-            musicNodes.push(osc);
-            
-            currentLoopTimeout = setTimeout(playBossBeat, 400);
-        }
-        playBossBeat();
-    }
-
-    // 🔗 INTÉGRATION SÉCURISÉE AVEC VOTRE OBJET SFX EXISTANT
-    window.sfx = window.sfx || {};
-    
-    // Ajout des musiques au système sfx sans effacer vos autres sons
-    window.sfx.startAmbientMusic = startLofiMusic;
-    window.sfx.startBossMusic = startBossMusic;
-    window.sfx.stopAmbientMusic = stopMusic;
-
-    // Remplacement uniquement du tir laser par le nouveau "piou piou" agréable
-    window.sfx.playShootLaser = () => {
-        if(!actx) return;
-        const o = actx.createOscillator();
-        const g = actx.createGain();
-        o.type = 'sine'; 
-        o.frequency.setValueAtTime(800, actx.currentTime);
-        o.frequency.exponentialRampToValueAtTime(200, actx.currentTime + 0.15);
-        g.gain.setValueAtTime(0.2, actx.currentTime);
-        g.gain.exponentialRampToValueAtTime(0.01, actx.currentTime + 0.15);
-        o.connect(g);
-        g.connect(sfxBus);
-        o.start();
-        o.stop(actx.currentTime + 0.15);
-    };
-
-    ['click','keydown'].forEach(ev => {
-        document.addEventListener(ev, function once(){
-            initAudio();
-            if(actx && actx.state === 'suspended') actx.resume();
-            document.removeEventListener(ev, once);
-        }, { once:true });
-    });
-
-    console.log("✅ Système audio PRO chargé avec succès !");
-})();
-</script>
-
-<!-- ⬇️ AJOUT DE LA BALISE STYLE POUR LE CSS DE L'INTERFACE MOBILE ⬇️ -->
-<style>
-/* --- STYLE INTERFACE MOBILE --- */
-#mobile-controls {
-    position: absolute;
-    bottom: 20px; left: 0; width: 100%;
-    display: none; /* Masqué par défaut, affiché uniquement sur mobile */
-    justify-content: space-between;
-    align-items: center;
-    padding: 0 30px;
-    box-sizing: border-box;
-    z-index: 99;
-}
-#joystick-zone {
-    width: 120px; height: 120px;
-    background: rgba(128, 0, 255, 0.15);
-    border: 3px solid #8000ff;
-    border-radius: 50%;
-    position: relative;
-    touch-action: none;
-}
-#joystick-knob {
-    width: 50px; height: 50px;
-    background: #ffea00;
-    border-radius: 50%;
-    position: absolute;
-    top: 50%; left: 50%;
-    transform: translate(-50%, -50%);
-    box-shadow: 0 0 10px #ffea00;
-    transition: transform 0.05s ease-out;
-}
-#action-buttons { display: flex; gap: 15px; }
-.mob-btn {
-    width: 70px; height: 70px;
-    border-radius: 50%;
-    font-family: 'Press Start 2P', monospace;
-    font-size: 8px;
-    color: #fff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    border: 3px solid #ff0055;
-    background: rgba(255, 0, 85, 0.2);
-    touch-action: none;
-    user-select: none;
-}
-#btn-mob-shield { border-color: #00ff66; background: rgba(0, 255, 102, 0.2); }
-#btn-mob-missile { border-color: #00ffff; background: rgba(0, 255, 255, 0.2); }
-.mob-btn:active { transform: scale(0.9); background: rgba(255,255,255,0.4) !important; }
-/* Force le panneau de gauche à rester visible et bien aligné */
-#left-panel, .sidebar, #controls-info { 
-    left: 10px !important; 
-    transform: none !important;
-}
-
-</style>
-
-<!-- ⬆️ FIN DU STYLE MOBILE ⬆️ -->
-
-    <!-- INTERFACE TACTILE MOBILE -->
-    <div id="mobile-controls">
-        <div id="joystick-zone">
-            <div id="joystick-knob"></div>
-        </div>
-        <div id="action-buttons">
-            <div id="btn-mob-shield" class="mob-btn">BOUC</div>
-            <div id="btn-mob-missile" class="mob-btn">MISS</div>
-            <div id="btn-mob-laser" class="mob-btn">LASER</div>
-        </div>
-    </div>
-    <!-- ⬆️ FIN DE L'INTERFACE TACTILE ⬆️ -->
-
-    <!-- Charger d'abord les bibliothèques externes -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-    <!-- Le script de secours qui verrouille le menu -->
-    <script>
-    // Ce script ne s'exécute qu'une seule fois au chargement
-    // Il ne force rien en boucle, il ne gênera pas ton jeu plus tard.
-    window.addEventListener('DOMContentLoaded', () => {
-        const menu = document.getElementById('menu-container');
-        if (menu) {
-            menu.style.display = 'flex'; // On assure juste qu'il est là au début
-            console.log("✅ Menu initialisé une seule fois.");
-        }
-    });
-</script>
 </body>
 </html>
